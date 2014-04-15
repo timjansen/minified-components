@@ -124,8 +124,32 @@ define('niagara-svg', function(require) {
 
 	}
 
+	NIAGARA.getter['>'] = function(list, name) {
+		return list[0].getAttributeNS(XLINK_NS, name);
+	};
+
+	NIAGARA.setter['>'] = function(list, name, value) {
+		list.each(function(obj, index) {
+			if (!obj || !obj.getAttributeNS)
+				return;
+
+			var v;
+			if (_.isFunction(value))
+				v = value(obj.getAttributeNS(XLINK_NS, name), index, obj);
+			else 
+				v = value;
+
+			if (v == null)
+				obj.removeAttributeNS(XLINK_NS, name);
+		 	else
+				obj.setAttributeNS(XLINK_NS, name, v);
+		});
+	};
+
+
+
 	var internalTestObjs = {resolveEntity: resolveEntity, resolveTextWithEntities: resolveTextWithEntities, parseSvg: parseSvg};
 
 	NIAGARA.M.prototype.st = st;
 	return {SVG_NS: SVG_NS, HTML_NS: HTML_NS, XLINK_NS: XLINK_NS, SEE: SEE, SVG: SVG, internalTestObjs: internalTestObjs};
-}
+});

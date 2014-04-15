@@ -33,13 +33,48 @@ module.exports = function(grunt) {
 				}]
 			}
 		},
-		
+	
+		copy: {
+			mocha: {
+				files: {
+					'webContent/mocha.js':     'node_modules/mocha/mocha.js',
+					'webContent/mocha.css':    'node_modules/mocha/mocha.css'
+				}
+			},
+			testJs: {
+				files: [{
+		            expand: true,
+		            cwd: 'src/test',  
+		            src: ['*.*'],
+		            dest: 'webContent/'
+			    }]
+			},
+			dist: {
+				files: [{
+			        expand: true,
+			        cwd: 'dist/',  
+			        src: ['*.js'],
+			        dest: 'webContent/'
+			    }]
+			}
+		},
+
 		clean: {
-		
 			tmp: ['tmp'],
-			dist: ['dist']
+			dist: ['dist'],
+			web: ['webContent']
 		},
 		
+ 	    mocha: {
+ 	 		  all: {
+ 	  			options: {
+ 	  				run: true,
+ 	  				timeout: 5000
+ 	  			},
+ 	  			src: [ 'webContent/test-*.html' ]
+ 	  		  }
+ 	    },
+
 		watch: {
 			  code: {
 				files: ['src/*.js'],
@@ -58,14 +93,14 @@ module.exports = function(grunt) {
 		  }
 	});
 	
-	grunt.loadTasks('build/tasks/');
 	grunt.loadNpmTasks('grunt-contrib-clean');
 	grunt.loadNpmTasks('grunt-contrib-uglify');
 	grunt.loadNpmTasks('grunt-contrib-copy');
 	grunt.loadNpmTasks('grunt-contrib-connect');
 	grunt.loadNpmTasks('grunt-contrib-watch');
+	grunt.loadNpmTasks('grunt-mocha');
 	
-	grunt.registerTask('code', ['uglify', 'copy:dist']);
+	grunt.registerTask('code', ['uglify', 'copy', 'mocha']);
 	grunt.registerTask('all', ['code']);
 	grunt.registerTask('server', ['all', 'connect']);
 	grunt.registerTask('default', ['code']);
