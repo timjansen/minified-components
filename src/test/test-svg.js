@@ -75,8 +75,8 @@ describe('SVG module', function() {
 		assert.equal(svgToCanonString(parseSvg('<svg><g/></svg>')), '<svg><g/></svg>');
 		assert.equal(svgToCanonString(parseSvg('<svg>a<g>b</g>c</svg>')), '<svg>a<g>b</g>c</svg>');
 		assert.equal(svgToCanonString(parseSvg('<svg>a<g>b</g>c<g>&quot;</g></svg>')), '<svg>a<g>b</g>c<g>"</g></svg>');
-		assert.equal(svgToCanonString(parseSvg('<svg>a<g>b</svg>')), '<svg>a<g>b</g></svg>');
-		assert.equal(svgToCanonString(parseSvg('<svg>a<g>b<g>c</g></svg>')), '<svg>a<g>b<g>c</g></g></svg>');
+		assert.equal(svgToCanonString(parseSvg('<svg>a<g>b</svg>')), '<svg>a<g/>b</svg>');
+		assert.equal(svgToCanonString(parseSvg('<svg>a<g>b<g>c</g></svg>')), '<svg>a<g/>b<g>c</g></svg>');
 		assert.equal(svgToCanonString(parseSvg('<svg id="abc"/>')), '<svg id="abc"/>');
 		assert.equal(svgToCanonString(parseSvg("<svg id='abc'/>")), '<svg id="abc"/>');
 		assert.equal(svgToCanonString(parseSvg("<svg id='a'><g stroke=\"blue\" fill=\"\" id='b'><circle cx='0' cy='2'/></g></svg>")), '<svg id="a"><g fill="" id="b" stroke="blue"><circle cx="0" cy="2"/></g></svg>');
