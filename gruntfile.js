@@ -37,16 +37,24 @@ module.exports = function(grunt) {
 		copy: {
 			mocha: {
 				files: {
-					'webContent/mocha.js':     'node_modules/mocha/mocha.js',
-					'webContent/mocha.css':    'node_modules/mocha/mocha.css'
+					'webContent/test/mocha.js':     'node_modules/mocha/mocha.js',
+					'webContent/test/mocha.css':    'node_modules/mocha/mocha.css'
 				}
 			},
-			testJs: {
+			testCases: {
 				files: [{
 		            expand: true,
 		            cwd: 'src/test',  
 		            src: ['*.*'],
-		            dest: 'webContent/'
+		            dest: 'webContent/test/'
+			    }]
+			},
+			testSrc: {
+				files: [{
+		            expand: true,
+		            cwd: 'src',
+		            src: ['*.*'],
+		            dest: 'webContent/test/'
 			    }]
 			},
 			dist: {
@@ -71,13 +79,13 @@ module.exports = function(grunt) {
  	  				run: true,
  	  				timeout: 5000
  	  			},
- 	  			src: [ 'webContent/test-*.html' ]
+ 	  			src: [ 'webContent/test/test-*.html' ]
  	  		  }
  	    },
 
 		watch: {
 			  code: {
-				files: ['src/*.js'],
+				files: ['src/**/*.js'],
 				tasks: ['code']
 			  }
 		},
