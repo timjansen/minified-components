@@ -34,15 +34,13 @@ define('niagara-svg', function(require) {
 	}
 
 	function createElement(fullTagName, attributeString) {
-console.log('creating ' + fullTagName, 'with attributes', attributeString);
 	     var match = /(?:([^:]+):)?(.*)/.exec(fullTagName);
 	     var el = document.createElementNS(PREFIX_MAP[match[1]]||SVG_NS, match[2]);
 
-	     var re = /(\w+:)?([\w-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')\s*/gm;
+	     var re = /(?:(\w+):)?([\w-]+)\s*=\s*(?:"([^"]*)"|'([^']*)')\s*/gm;
 	     var ma;
 	     while (ma = re.exec(attributeString)) {
 	          // ma is array [wholeMatch, prefix, localName, attrValue1, attrValue2]
-console.log('attrs', ma);
 	          var value = resolveTextWithEntities(ma[3] || ma[4] || '');
 	          if (ma[1] && PREFIX_MAP[ma[1]])
 	               el.setAttributeNS(PREFIX_MAP[ma[1]], ma[2], value);
