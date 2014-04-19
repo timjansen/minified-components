@@ -49,6 +49,22 @@ module.exports = function(grunt) {
 		            dest: 'webContent/test/'
 			    }]
 			},
+			examples: {
+				files: [{
+		            expand: true,
+		            cwd: 'src/examples',  
+		            src: ['**/*.*'],
+		            dest: 'webContent/examples/'
+			    }]
+			},
+			exampleSrc: {
+				files: [{
+		            expand: true,
+		            cwd: 'src',
+		            src: ['*.*'],
+		            dest: 'webContent/examples/'
+			    }]
+			},
 			testSrc: {
 				files: [{
 		            expand: true,
@@ -85,7 +101,7 @@ module.exports = function(grunt) {
 
 		watch: {
 			  code: {
-				files: ['src/**/*.js'],
+				files: ['src/**/*.js', 'src/**/*.html'],
 				tasks: ['code']
 			  }
 		},
