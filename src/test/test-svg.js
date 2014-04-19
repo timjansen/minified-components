@@ -1,4 +1,5 @@
 var niaSvg = require('niagara-svg');
+var SEE = niaSvg.SEE, SVG = niaSvg.SVG;
 var resolveEntity = niaSvg.internalTestObjs.resolveEntity;
 var resolveTextWithEntities = niaSvg.internalTestObjs.resolveTextWithEntities;
 var parseSvg = niaSvg.internalTestObjs.parseSvg;
@@ -112,9 +113,84 @@ describe('SVG module', function() {
 			assert.equal(svgToCanonString(parseSvg('<html:div><html:a href="/t">x</html:a><svg><a xlink:href="/b"><rect /></a></svg></html:div>')).toLowerCase(), 
 				'<html:div><html:a href="/t">x</html:a><svg><a xlink:href="/b"><rect/></a></svg></html:div>');
 		});
+	});
 
+	it('supports ^ getter', function() {
+		assert.equal($(parseSvg('<a xlink:href="http://test/">test</a>')).get("^href"), "http://test/");
+		assert.equal($(parseSvg('<circle cx="0" cy="2" r="11"/>')).get("^cy"), "");
+		assert.equal($(parseSvg('<a xlink:href="http://test/">test</a><a xlink:href="http://test2/">test</a>')).get("^href"), "http://test/");
+	});
+
+	it('supports ^ setter', function() {
+		assert.equal(svgToCanonString($(parseSvg('<a>test</a>')).set("^href", "http://test/")), '<a xlink:href="http://test/">test</a>');
+		assert.equal(svgToCanonString($(parseSvg('<a>test</a><html:b>toast</html:b>')).set({"^href": "http://test/"})).toLowerCase(), '<a xlink:href="http://test/">test</a><html:b xlink:href="http://test/">toast</html:b>');
+		assert.equal(svgToCanonString($(parseSvg('<a xlink:href="http://test/">test</a><b xlink:href="http://toasty/">toast</b>')).set({"^href": function(oldValue, index, obj) {
+			return oldValue.replace(/^http/, 'ftp') + obj.tagName.toLowerCase() + '/' + index;
+		}})), 
+			'<a xlink:href="ftp://test/a/0">test</a><b xlink:href="ftp://toasty/b/1">toast</b>');
+	});
+
+	it('supports SEE', function() {
+		assert.equal(SEE('svg')[0].namespaceURI, niaSvg.SVG_NS);
+		assert.equal(svgToCanonString(SEE('circle', {'@cx': 10, '@cy': '20', '@r': 11})), '<circle cx="10" cy="20" r="11"/>');
+		assert.equal(svgToCanonString(SEE('a', {'^href': "http://example.com/"}, "test")), '<a xlink:href="http://example.com/">test</a>');
+		assert.equal(svgToCanonString(SEE('svg', SEE('g', {'@id': 'g1'}, [SEE('g'), SEE('circle', {'@cx': 10, '@cy': '20', '@r': 11})]))), '<svg><g id="g1"><g/><circle cx="10" cy="20" r="11"/></g></svg>');
+
+		assert.equal(svgToCanonString($(document.createElementNS(niaSvg.SVG_NS, 'svg')).add(SEE('g'))), '<svg><g/></svg>');
+	});
+
+	describe('.st()', function() {
+		it('supports plain code', function() {
+			assert.equal(svgToCanonString($(document.createElementNS(niaSvg.SVG_NS, 'svg')).st('<g>x</g>')), '<svg><g>x</g></svg>');
+		});
+		it('supports string templates', function() {
+			assert.equal(svgToCanonString($(document.createElementNS(niaSvg.SVG_NS, 'svg')).st('<a>{{txt}}</a>', {txt: 'foo'})), '<svg><a>foo</a></svg>');
+			assert.equal(svgToCanonString($(document.createElementNS(niaSvg.SVG_NS, 'svg')).st('<a>{{txt1}}{{txt2}}</a>', {txt1: 'what?'}, {txt2: 'bar'}, {txt1: 'foo'})), '<svg><a>foobar</a></svg>');
+		});
+		it('supports id templates', function() {
+			assert.equal(svgToCanonString($(document.createElementNS(niaSvg.SVG_NS, 'svg')).st('#testTemplate', {radius: 100})), '<svg><circle cx="1" cy="2" r="100"/></svg>');
+		});
+		it('supports function templates', function() {
+			assert.equal(svgToCanonString($(document.createElementNS(niaSvg.SVG_NS, 'svg')).st(function(obj) {
+				return '<a>' + obj.txt + '</a>';
+			}, {txt: 'foobar'})), '<svg><a>foobar</a></svg>');
+		});
+		it('modifies all list items', function() {
+			var g = $(parseSvg('<g><a>a</a><a>b</a><a>c</a></g>'));
+			var as = $('a', g);
+			assert.equal(as.length, 3);
+			as.st('x');
+			assert.equal(svgToCanonString(g), '<g><a>x</a><a>x</a><a>x</a></g>');
+		});
+	});
+
+	describe('SVG()', function() {
+		it('supports plain code', function() {
+			assert.equal(svgToCanonString($(document.createElementNS(niaSvg.SVG_NS, 'svg')).add(SVG('<g>x</g>'))), '<svg><g>x</g></svg>');
+		});
+		it('supports string templates', function() {
+			assert.equal(svgToCanonString($(document.createElementNS(niaSvg.SVG_NS, 'svg')).fill(SVG('<a>{{txt}}</a>', {txt: 'foo'}))), '<svg><a>foo</a></svg>');
+			assert.equal(svgToCanonString($(document.createElementNS(niaSvg.SVG_NS, 'svg')).addFront(SVG('<a>{{txt1}}{{txt2}}</a>', {txt1: 'what?'}, {txt2: 'bar'}, {txt1: 'foo'}))), '<svg><a>foobar</a></svg>');
+		});
+		it('supports id templates', function() {
+			assert.equal(svgToCanonString($(document.createElementNS(niaSvg.SVG_NS, 'svg')).add(SVG('#testTemplate', {radius: 100}))), '<svg><circle cx="1" cy="2" r="100"/></svg>');
+		});
+		it('supports function templates', function() {
+			assert.equal(svgToCanonString($(document.createElementNS(niaSvg.SVG_NS, 'svg')).add(SVG(function(obj) {
+				return '<a>' + obj.txt + '</a>';
+			}, {txt: 'foobar'}))), '<svg><a>foobar</a></svg>');
+		});
+		it('is clonable', function() {
+			var g = $(parseSvg('<g><a>a</a><a>b</a><a>c</a></g>'));
+			var as = $('a', g);
+			as.replace(SVG('<circle cx="1" cy="2" r="100"/>'));
+			assert.equal(svgToCanonString(g), '<g><circle cx="1" cy="2" r="100"/><circle cx="1" cy="2" r="100"/><circle cx="1" cy="2" r="100"/></g>');
+		});
 	});
 
 
 });
+
+
+
 

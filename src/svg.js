@@ -106,32 +106,33 @@ define('niagara-svg', function(require) {
 	}
 
 	function resolveSvg(svgTemplate, resolvedObject) {
-		return parseSvg(isFunction(svgTemplate) ? svgTemplate(o) : 
-                    /{{/.test(svgTemplate) ? formatHtml(svgTemplate, o) : 
-                    /^#\S+$/.test(svgTemplate) ? formatHtml($$(svgTemplate).text, o) : svgTemplate);
+		return parseSvg(_.isFunction(svgTemplate) ? svgTemplate(resolvedObject) : 
+                    /{{/.test(svgTemplate) ? _.formatHtml(svgTemplate, resolvedObject) : 
+                    /^#\S+$/.test(svgTemplate) ? _.formatHtml($$(svgTemplate).text, resolvedObject) : svgTemplate);
 	}
+
 
 
 
 	function SEE(elementName, attributes, children) {
-		var e = $(_document.createElementNS(SVG_NS, elementName));
+		var e = $(document.createElementNS(SVG_NS, elementName));
 		return (_.isList(attributes) || (attributes != null && !_.isObject(attributes)) ) ? e.add(attributes) : e.set(attributes).add(children);
 	}
 
 	function st(svgTemplate, object) {
-		return this.fill(resolveSvg(svgTemplate, arguments.length > 2 ? _.merge(sub(arguments, 1)) : object));
+		return this.fill(resolveSvg(svgTemplate, arguments.length > 2 ? _.merge(_.sub(arguments, 1)) : object));
 	}
 
 	function SVG(svgTemplate, object) {
-		return _(resolveSvg(svgTemplate, arguments.length > 2 ? _.merge(sub(arguments, 1)) : object));
+		return _(resolveSvg(svgTemplate, arguments.length > 2 ? _.merge(_.sub(arguments, 1)) : object));
 
 	}
 
-	NIAGARA.getter['>'] = function(list, name) {
+	NIAGARA.getter['^'] = function(list, name) {
 		return list[0].getAttributeNS(XLINK_NS, name);
 	};
 
-	NIAGARA.setter['>'] = function(list, name, value) {
+	NIAGARA.setter['^'] = function(list, name, value) {
 		list.each(function(obj, index) {
 			if (!obj || !obj.getAttributeNS)
 				return;
@@ -148,6 +149,8 @@ define('niagara-svg', function(require) {
 				obj.setAttributeNS(XLINK_NS, name, v);
 		});
 	};
+
+
 
 	NIAGARA.M.prototype.st = st;
 

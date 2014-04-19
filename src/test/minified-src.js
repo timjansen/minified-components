@@ -971,7 +971,7 @@ define('minified', function() {
 		    	 return clone(e);
 		     else if (isNode(e)) {
 		    	 c = e['cloneNode'](true);
-		    	 c['removeAttribute']('id');
+		    	 c['removeAttribute'] && c['removeAttribute']('id');
 		    	 return c;
 		     }
 		     else
@@ -4376,7 +4376,7 @@ define('minified', function() {
 	 * 
 	 * On legacy IE platforms, <var>onChange</var> tries to report every change as soon as possible. When used with bubbling selector, 
 	 * some text changes may not be reported before the input loses focus. This is because there is no reliable event to report text 
-	 * changes that supports bubbling. 
+	 * changes that also supports bubbling. 
 	 * 
 	 * @example Creates a handler that writes the input's content into a text node:
 	 * <pre>
@@ -6835,7 +6835,8 @@ define('minified', function() {
 		 * 
 		 * The function's signature is <code>function(list, name)</code> where
 		 * <dl><dt>list</dt><dd>Is the Minified list to get the value from. By convention you should always use only the first element. The list is
-		 *                      never empty (get() automatically returns <var>undefined</var> in this case).</dd>
+		 *                      non-empty and the first elememt can't be null or undefined (get() automatically returns <var>undefined</var> in 
+		 *                      all other case).</dd>
 		 *     <dt>name</dt><dd>The name of the property. That's the part AFTER the prefix.</dd>
 		 *     <dt class="returnValue">(callback return value)</dt><dd>The value to return to the user.</dd></dl>
 		 * 
