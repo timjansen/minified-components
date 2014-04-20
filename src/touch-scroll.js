@@ -210,10 +210,18 @@ define('niagara-ui', function(require) {
 		return opts;
 	}
 
-
+	function getBool(str, defaultValue) {
+		if (str === true || str === false)
+			return str;
+		else if (str == null || str === '')
+			return !!defaultValue;
+		else
+			return /true|on|yes/i.test(str);
+	}
 
 	return {
 		getDataOptions: getDataOptions,
+		getBool: getBool,
 		absLimit: absLimit,
 		absReduce: absReduce,
 		createSmoothInterpolator: createSmoothInterpolator,
@@ -248,15 +256,12 @@ define('touchScroll' , function(require) {
 	function touchScroll(parent, content, options) {
 		parent = $(parent).only(0);
 		content = $(content).only(0);
-console.log(parent, content);
 		if (!parent.length)
 			return;
 		if (!content.length)
 			content = $('*', parent, true).not('.background').not('.overlay').only(0);
-console.log(2, parent, content);
 		if (!content.length)
 			return;
-console.log(parent, content);
 
 		var w = content.get('clientWidth', true);
 		var h = content.get('clientHeight', true);
@@ -267,7 +272,7 @@ console.log(parent, content);
 		var decceleration = (opts.deceleration || 400) / 1000000;      // deceleration in px/s^2
 		var bumpAnimDuration = opts.bumpAnimDuration || 300;  // duration of bump animation in ms
 		var initialPosition = opts.initialPosition || {x: (w-pw)/2, y: (h-ph)/2};
-		var scrollAlways = !!opts.scrollAlways;
+		var scrollAlways = getBool(opts.scrollAlways, false);
 		var axis = opts.axis || 'both';
 		var axisX = axis != 'y' && (scrollAlways || pw<w);
 		var axisY = axis != 'x' && (scrollAlways || ph<h);
