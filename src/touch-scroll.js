@@ -168,6 +168,12 @@ define('niagara-ui', function(require) {
   		return document.implementation.hasFeature("http://www.w3.org/TR/SVG11/feature#BasicStructure", "1.1");
   	}
 
+  	// copied from SVG module to reduce dependencies
+	function SEE(elementName, attributes, children) {
+		var e = $(document.createElementNS("http://www.w3.org/2000/svg", elementName));
+		return (_.isList(attributes) || (attributes != null && !_.isObject(attributes)) ) ? e.add(attributes) : e.set(attributes).add(children);
+	}
+
   	// returns true if fullscreen is possible, false if not possible at the moment, or null if not possible at all
   	function isFullscreenPossible(el) {
   		return _('fullscreenEnabled', 'mozFullScreenEnabled', 'webkitFullscreenEnabled', 'msFullscreenEnabled').find(function(name) {
@@ -201,6 +207,7 @@ define('niagara-ui', function(require) {
 			document[name]();
 	}
 
+	// gets a list of data-attribute options to get from the elements, returns the options as object.
 	function getDataOptions(el, optionList) {
 		var opts = {};
 		_.eachObj($(el).get(optionList), function(name, value) {
@@ -210,6 +217,7 @@ define('niagara-ui', function(require) {
 		return opts;
 	}
 
+	// converts string into boolean
 	function getBool(str, defaultValue) {
 		if (str === true || str === false)
 			return str;
@@ -219,14 +227,35 @@ define('niagara-ui', function(require) {
 			return /true|on|yes/i.test(str);
 	}
 
+	// returns an event dispatcher that can register/unregister handlers and trigger events for them.
+	function createEventDispatcher(obj) {
+		var handlers = [];
+		return {
+			on: function(handler) {
+				handlers.push(handler);
+			},
+			off: function(handler) {
+				for (var i = 0; i < handlers.length; i++)
+					if (handlers[i] === handler)
+						handlers.slice(i--, 1);
+			},
+			trigger: function() {
+				if (handlers.length)
+					_.call(handlers, obj, arguments);
+			}
+		};
+	}
+
 	return {
 		getDataOptions: getDataOptions,
 		getBool: getBool,
+		createEventDispatcher: createEventDispatcher,
 		absLimit: absLimit,
 		absReduce: absReduce,
 		createSmoothInterpolator: createSmoothInterpolator,
 		touchMover: touchMover,
 		isSvgPossible: isSvgPossible,
+		SEE: SEE,
 		isFullscreenPossible: isFullscreenPossible,
 		setFullscreen: setFullscreen,
 		exitFullscreen: exitFullscreen
@@ -242,16 +271,33 @@ define('touchScroll' , function(require) {
 	var niaUI = require('niagara-ui');
 	var createSmoothInterpolator = niaUI.createSmoothInterpolator;
 	var getDataOptions = niaUI.getDataOptions;
+	var getBool = niaUI.getBool;
+	var createEventDispatcher = niaUI.createEventDispatcher;
 	var touchMover = niaUI.touchMover;
+	var isSvgPossible = niaUI.isSvgPossible;
 
 
+	// parent: a <div> or similar element. Should have fixed size. touchScroll will set relative positioning if it is not already positioned and $overflow=hidden.
+	// content: the element to move inside the parent. If not given, it takes the first child that does not have the classes .background or .overlay.
 	// options = {
 	//   deceleration:     400,         // deceleration in px/s^2
 	//   bumpAnimDuration: 300,         // duration of bump animation in ms
 	//   initialPosition: {x: 0, y: 0}, // initial position in px. Will be centered if not set. Alt syntax: "x, y"
 	//   axis: 'both',                  // 'x' to move only x-axis, 'y' for y-axis
-	//   scrollAlways: false            // if set true, touch scrolling is supported even when content fits
+	//   scrollAlways: false,           // if set true, touch scrolling is supported even when content fits
+	//   touchAnimation: true,          // if true, show a touch animation to explain how to use this. default: true
 	// } 
+	// 
+	// Returns: {
+	//	 onTouchStart: function(handler){}    // to register a handler to be called when user touches or presses mouse button
+	//   offTouchStart: function(handler){}   // unregisters onTouchStart handler	
+	//	 onTouchMove: function(handler){}     // to register a handler to be called when user moves the finger/pointer. Arguments: dx/dy relative movement in px
+	//   offTouchMove: function(handler){}    // unregisters onTouchMove handler	
+	//	 onTouchEnd: function(handler){}      // to register a handler to be called when user touch ends (lifts finger or releases mouse)
+	//   offTouchEnd: function(handler){}     // unregisters onTouchEnd handler	
+	//	 onMovementEnd: function(handler){}   // to register a handler to be called when the animation after the touch ends
+	//   offMovementEnd: function(handler){}  // unregisters onMovementEnd handler	
+	//}
 
 	function touchScroll(parent, content, options) {
 		parent = $(parent).only(0);
@@ -268,6 +314,11 @@ define('touchScroll' , function(require) {
 		var pw = parent.get('clientWidth', true);
 		var ph = parent.get('clientHeight', true);
 
+		var touchStartED = createEventDispatcher(parent);
+		var touchMoveED = createEventDispatcher(parent);
+		var touchEndED = createEventDispatcher(parent);
+		var movementEndED = createEventDispatcher(parent);
+
 		var opts = options || {};
 		var decceleration = (opts.deceleration || 400) / 1000000;      // deceleration in px/s^2
 		var bumpAnimDuration = opts.bumpAnimDuration || 300;  // duration of bump animation in ms
@@ -276,6 +327,7 @@ define('touchScroll' , function(require) {
 		var axis = opts.axis || 'both';
 		var axisX = axis != 'y' && (scrollAlways || pw<w);
 		var axisY = axis != 'x' && (scrollAlways || ph<h);
+		var touchAnimation = getBool(opts.touchAnimation, isSvgPossible());
 
 		if (_.isString(initialPosition))
 			initialPosition = {x: parseFloat(initialPosition.replace(/,.*/, '')), y: parseFloat(initialPosition.replace(/.*,/, ''))};
@@ -291,16 +343,35 @@ define('touchScroll' , function(require) {
 		var sy = content.get('offsetTop', true);
 		var animLoopStop;
 
-		touchMover(parent, function start() {
-			if (animLoopStop)
+		function stopAnimation() {
+			if (animLoopStop) {
 				animLoopStop();
+				movementEndED.trigger();
+				animLoopStop = null;
+			}
+		}
+
+		function move(dx, dy, smooth) {
+			stopAnimation();
+			if (smooth) {
+				// TODO
+			}
+			else {
+				if (axisX)
+					sx += dx;
+				if (axisY)
+					sy += dy;
+				content.set({$left: Math.round(sx)+'px', $top: Math.round(sy)+'px'});
+			}
+		}
+
+		touchMover(parent, function start() {
+			stopAnimation();
+			touchStartED.trigger();
 		},
-		function move(el, dx, dy) {
-			if (axisX)
-				sx += dx;
-			if (axisY)
-				sy += dy;
-			content.set({$left: Math.round(sx)+'px', $top: Math.round(sy)+'px'});	
+		function touchMove(el, dx, dy) {
+			move(dx, dy);
+			touchMoveED.trigger(dx, dy);
 		}, 
 		function end(el, vxS, vyS) {
 			var vx = axisX ? vxS / 1000 : 0;
@@ -309,49 +380,60 @@ define('touchScroll' , function(require) {
 			var sy0 = sy;
 			var v = Math.sqrt(vx*vx+vy*vy);
 			var maxT = v / decceleration;
-			var endT = maxT;
 			var dir = Math.atan2(vy, vx);
 			var ax = -Math.cos(dir) * decceleration;
 			var ay = -Math.sin(dir) * decceleration;
-			var bumpAnimX, bumpAnimY;
+			var animX, animY;
+			var animEndT = maxT;
 
 			animLoopStop = $.loop(function(t, stop) {
 				var tm = Math.min(t, maxT);
-				if (bumpAnimX)
-					sx = bumpAnimX(t);
+				if (animX)
+					sx = animX(t);
 				else {
 					sx = sx0 + vx*tm + 0.5*ax*tm*tm;
 					if (sx < pw-w)
-						bumpAnimX = createSmoothInterpolator(bumpAnimDuration, sx, pw-w, vx+ax*tm, 0, -tm);
+						animX = createSmoothInterpolator(bumpAnimDuration, sx, pw-w, vx+ax*tm, 0, -tm);
 					else if (sx > 0)
-						bumpAnimX = createSmoothInterpolator(bumpAnimDuration, sx, 0, vx+ax*tm, 0, -tm);
-					if (bumpAnimX)
-						endT = Math.max(endT, tm + bumpAnimDuration);
+						animX = createSmoothInterpolator(bumpAnimDuration, sx, 0, vx+ax*tm, 0, -tm);
+					if (animX)
+						animEndT = Math.max(animEndT, tm + bumpAnimDuration);
 		 		}
-		 		if (bumpAnimY)
-					sy = bumpAnimY(t);
+		 		if (animY)
+					sy = animY(t);
 		  		else {
 					sy = sy0 + vy*tm + 0.5*ay*tm*tm;
 					if (sy < ph-h)
-			  			bumpAnimY = createSmoothInterpolator(bumpAnimDuration, sy, ph-h, vy+ay*tm, 0, -tm);
+			  			animY = createSmoothInterpolator(bumpAnimDuration, sy, ph-h, vy+ay*tm, 0, -tm);
 					else if (sy > 0)
-			  			bumpAnimY = createSmoothInterpolator(bumpAnimDuration, sy, 0, vy+ay*tm, 0, -tm);
-					if (bumpAnimY)
-						endT = Math.max(endT, tm + bumpAnimDuration);
+			  			animY = createSmoothInterpolator(bumpAnimDuration, sy, 0, vy+ay*tm, 0, -tm);
+					if (animY)
+						animEndT = Math.max(animEndT, tm + bumpAnimDuration);
 				}
-				if (t >= endT) {
+				if (t >= animEndT) {
 					sx = Math.max(pw-w, Math.min(0, sx));
 					sy = Math.max(ph-h, Math.min(0, sy));
 					stop();
+					movementEndED.trigger();
 		  		}
 				content.set({$left: Math.round(sx)+'px', $top: Math.round(sy)+'px'});
 			});
+			touchEndED.trigger();
 		}, options);
+
+		return {
+			onTouchStart:  touchStartED.on,  offTouchStart:  touchStartED.off,
+			onTouchMove:   touchMoveED.on,   offTouchMove:   touchMoveED.off,
+			onTouchEnd:    touchEndED.on,    offTouchEnd:    touchEndED.off,
+			onMovementEnd: movementEndED.on, offMovementEnd: movementEndED.off,
+			move: move
+		};
 	}
 
 	$(function() {
 		$('.touchScroll').each(function(el) {
-			var opts = getDataOptions(el, ['%deceleration', '%bumpAnimDuration', '%initialPosition', '%axis', '%scrollAlways']);
+			var opts = getDataOptions(el, ['%deceleration', '%bumpAnimDuration', '%initialPosition', '%axis', '%scrollAlways',
+					'%touchAnimation']);
 			touchScroll(el, null, opts);
 		});
 	});
