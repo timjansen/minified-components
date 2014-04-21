@@ -1,0 +1,36 @@
+<html>
+	<head><title>Touch Scroll Test</title>
+
+	<style type="text/css">
+		body { font: 20px/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif; }
+		#pageContainer { margin: 0.5em; }
+	</style> 
+
+	<script type="text/javascript" src="minified-src.js"></script>
+	<script type="text/javascript" src="touch-scroll.js"></script>
+  	<script>
+  		var NIAGARA = require('minified'), $ = NIAGARA.$, $$=NIAGARA.$$, EE = NIAGARA.EE, HTML = NIAGARA.HTML;
+  		var _ = NIAGARA._;
+  		var touchScroll = require('touchScroll');
+  	
+  		var ts = touchScroll('#ts2');
+  	</script>
+	</head>
+	<body>
+		<div id="pageContainer">
+			<h2 id="title">Touch Scroll Test</h2>
+
+			<div class="touchScroll" style="width: 800px; height: 300px;" data-initialPosition="1400, 1400">
+				<img src="imgs/niagara-large.jpg" style="width: 4320px; height: 2432px;"/>
+			</div>
+
+			<h3>JavaScript API</h3>
+			<div id="ts2" style="width: 800px; height: 300px;">
+				<img src="imgs/niagara-large.jpg" style="width: 4320px; height: 2432px;"/>
+			</div>
+			<button id="leftBtn">Left</button><button id="upBtn">Up</button><button id="downBtn">Down</button><button id="rightBtn">Right</button>
+
+		</div>		
+	</body>
+</html>
+
