@@ -13,7 +13,23 @@
   		var _ = NIAGARA._;
   		var touchScroll = require('touchScroll');
   	
-  		var ts = touchScroll('#ts2');
+  		$(function() {
+  			var ts = touchScroll('#ts2');
+			$('#leftBtn').onClick(ts.move, [40, 0, 200]);
+			$('#upBtn').onClick(ts.move, [0, 40, 200]);
+			$('#downBtn').onClick(ts.move, [0, -40, 200]);
+			$('#rightBtn').onClick(ts.move, [-40, 0, 200]);
+
+			$('#topLeftBtn').onClick(ts.moveTo, [0, 0, 400]);
+			$('#centerBtn').onClick(function() {
+				var pos = ts.position();
+				ts.moveTo((pos.w-pos.viewW)/2, (pos.h-pos.viewH)/2, 400);
+			});
+			$('#bottomRightBtn').onClick(function() {
+				var pos = ts.position();
+				ts.moveTo(pos.w-pos.viewW, pos.h-pos.viewH, 400);
+			});
+  		});
   	</script>
 	</head>
 	<body>
@@ -28,7 +44,8 @@
 			<div id="ts2" style="width: 800px; height: 300px;">
 				<img src="imgs/niagara-large.jpg" style="width: 4320px; height: 2432px;"/>
 			</div>
-			<button id="leftBtn">Left</button><button id="upBtn">Up</button><button id="downBtn">Down</button><button id="rightBtn">Right</button>
+			<div><button id="leftBtn">Left</button><button id="upBtn">Up</button><button id="downBtn">Down</button><button id="rightBtn">Right</button></div>
+			<div><button id="topLeftBtn">Top-Left</button><button id="centerBtn">Center</button><button id="bottomRightBtn">Bottom-Right</button></div>
 
 		</div>		
 	</body>

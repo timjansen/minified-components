@@ -16,6 +16,36 @@ define('niagara-ui', function(require) {
 			return Math.min(0, v + v2);
 	}
 
+	// gets a list of data-attribute options to get from the elements, returns the options as object.
+	function getDataOptions(el, optionList) {
+		var opts = {};
+		_.eachObj($(el).get(optionList), function(name, value) {
+			if (value)
+				opts[name.replace(/^\W/, '')] = value;
+		});
+		return opts;
+	}
+
+	// converts string into boolean
+	function getBool(str, defaultValue) {
+		if (str === true || str === false)
+			return str;
+		else if (str == null || str === '')
+			return !!defaultValue;
+		else
+			return /true|on|yes/i.test(str);
+	}
+	
+	// converts string into float
+	function getFloat(str, defaultValue) {
+		if (str == null || str == '')
+			return defaultValue||0;
+		else if (_.isNumber(str))
+			return str;
+		else
+			return parseFloat(str);
+	}
+
 	/**
 	 * Creates an interpolation function that will smoothly interpolate from the given start value and velocity
 	 * to the given target value with the given target velocity.
@@ -67,14 +97,13 @@ define('niagara-ui', function(require) {
 	// options = {
 	//   velocityEvalTime: 250,     // max number of milliseconds to get avg current speed
 	//   velocitySamples:  4,       // number of samples to determine speed. Must be >1.
-	//   velocityMax:      1000,    // max velocity in px/s
-	//   moveOnlyInside: false      // keep on moving when cursor leaves area
+	//   velocityMax:      1000    // max velocity in px/s
 	// }
 	function touchMover(elements, onStart, onMove, onFinish, options) {
 		var opts = options || {};
-		var velocityEvalTime = opts.velocityEvalTime || 250;
-		var velocitySamples = opts.velocitySamples || 4;
-		var velocityMax = opts.velocityMax || 1000;
+		var velocityEvalTime = getFloat(opts.velocityEvalTime, 250);
+		var velocitySamples = getFloat(opts.velocitySamples, 4);
+		var velocityMax = getFloat(opts.velocityMax, 1000);
 		var list = $(elements);
 		 
 		var stopMove;  // function(e) to stop touch, null if not in touch
@@ -207,26 +236,6 @@ define('niagara-ui', function(require) {
 			document[name]();
 	}
 
-	// gets a list of data-attribute options to get from the elements, returns the options as object.
-	function getDataOptions(el, optionList) {
-		var opts = {};
-		_.eachObj($(el).get(optionList), function(name, value) {
-			if (value)
-				opts[name.replace(/^\W/, '')] = value;
-		});
-		return opts;
-	}
-
-	// converts string into boolean
-	function getBool(str, defaultValue) {
-		if (str === true || str === false)
-			return str;
-		else if (str == null || str === '')
-			return !!defaultValue;
-		else
-			return /true|on|yes/i.test(str);
-	}
-
 	// returns an event dispatcher that can register/unregister handlers and trigger events for them.
 	function createEventDispatcher(obj) {
 		var handlers = [];
@@ -249,6 +258,7 @@ define('niagara-ui', function(require) {
 	return {
 		getDataOptions: getDataOptions,
 		getBool: getBool,
+		getFloat: getFloat,
 		createEventDispatcher: createEventDispatcher,
 		absLimit: absLimit,
 		absReduce: absReduce,
@@ -272,6 +282,7 @@ define('touchScroll' , function(require) {
 	var createSmoothInterpolator = niaUI.createSmoothInterpolator;
 	var getDataOptions = niaUI.getDataOptions;
 	var getBool = niaUI.getBool;
+	var getFloat = niaUI.getFloat;
 	var createEventDispatcher = niaUI.createEventDispatcher;
 	var touchMover = niaUI.touchMover;
 	var isSvgPossible = niaUI.isSvgPossible;
@@ -320,8 +331,8 @@ define('touchScroll' , function(require) {
 		var movementEndED = createEventDispatcher(parent);
 
 		var opts = options || {};
-		var decceleration = (opts.deceleration || 400) / 1000000;      // deceleration in px/s^2
-		var bumpAnimDuration = opts.bumpAnimDuration || 300;  // duration of bump animation in ms
+		var deceleration = getFloat(opts.deceleration, 400) / 1000000;      // deceleration in px/s^2
+		var bumpAnimDuration = getFloat(opts.bumpAnimDuration, 300);  // duration of bump animation in ms
 		var initialPosition = opts.initialPosition || {x: (w-pw)/2, y: (h-ph)/2};
 		var scrollAlways = getBool(opts.scrollAlways, false);
 		var axis = opts.axis || 'both';
@@ -339,8 +350,9 @@ define('touchScroll' , function(require) {
 		if (!/relative|absolute|fixed|sticky/.test(parent.get('$position')))
 			parent.set({$position: 'relative'});
 
-		var sx = content.get('offsetLeft', true);
-		var sy = content.get('offsetTop', true);
+		var sx = content.get('offsetLeft', true); // position of the image
+		var sy = content.get('offsetTop', true);  
+		var vx = 0, vy = 0;                       // current velocity
 		var animLoopStop;
 
 		function stopAnimation() {
@@ -350,19 +362,52 @@ define('touchScroll' , function(require) {
 				animLoopStop = null;
 			}
 		}
+        
+		function setPos() {
+        	content.set({$left: Math.round(sx)+'px', $top: Math.round(sy)+'px'});
+        }
 
-		function move(dx, dy, smooth) {
-			stopAnimation();
-			if (smooth) {
-				// TODO
+        // works with real (negative) coordinates, not user coordinates
+        function moveToInternal(x, y, smoothT) {
+        	stopAnimation();
+            if (smoothT) {
+            	var animX = createSmoothInterpolator(smoothT, sx, x, vx, 0);
+				var animY = createSmoothInterpolator(smoothT, sy, y, vy, 0);
+				animLoopStop = $.loop(function(t) {
+					if (t >= smoothT)
+						moveToInternal(x, y);
+					else {
+						sx = animX(t);
+						sy = animY(t);
+						vx = animX(t, true);
+						vy = animY(t, true);
+						setPos();
+					}
+				});
 			}
 			else {
-				if (axisX)
-					sx += dx;
-				if (axisY)
-					sy += dy;
-				content.set({$left: Math.round(sx)+'px', $top: Math.round(sy)+'px'});
+				sx = x;
+				sy = y;
+				vx = vy = 0;
+				setPos();
 			}
+		}
+
+		function moveTo(x, y, smoothT) {
+			moveToInternal(-x, -y, smoothT);
+		}
+         
+		function move(dx, dy, smoothT) {
+			var x = sx, y = sy;
+			if (axisX)
+				x = Math.max(pw-w, Math.min(sx+dx, 0));
+			if (axisY)
+				y = Math.max(ph-h, Math.min(sy+dy, 0));
+			moveToInternal(x, y, smoothT);
+		}
+
+		function position() {
+			return {x: w+sx, y: h+sy, vx: vx*1000, vy: vy*1000, w: w, h: h, viewW: pw, viewH: ph};
 		}
 
 		touchMover(parent, function start() {
@@ -373,50 +418,57 @@ define('touchScroll' , function(require) {
 			move(dx, dy);
 			touchMoveED.trigger(dx, dy);
 		}, 
-		function end(el, vxS, vyS) {
-			var vx = axisX ? vxS / 1000 : 0;
-			var vy = axisY ? vyS / 1000 : 0;
+		function end(el, initVxS, initVyS) {
+			var initVx = axisX ? initVxS / 1000 : 0;
+			var initVy = axisY ? initVyS / 1000 : 0;
 			var sx0 = sx;
 			var sy0 = sy;
-			var v = Math.sqrt(vx*vx+vy*vy);
-			var maxT = v / decceleration;
-			var dir = Math.atan2(vy, vx);
-			var ax = -Math.cos(dir) * decceleration;
-			var ay = -Math.sin(dir) * decceleration;
+			var v = Math.sqrt(initVx*initVx+initVy*initVy);
+			var maxT = v / deceleration;
+			var dir = Math.atan2(initVy, initVx);
+			var ax = -Math.cos(dir) * deceleration;
+			var ay = -Math.sin(dir) * deceleration;
 			var animX, animY;
 			var animEndT = maxT;
 
 			animLoopStop = $.loop(function(t, stop) {
 				var tm = Math.min(t, maxT);
-				if (animX)
+				if (animX) {
 					sx = animX(t);
+					vx = animX(t, true);
+				}
 				else {
-					sx = sx0 + vx*tm + 0.5*ax*tm*tm;
+					sx = sx0 + initVx*tm + 0.5*ax*tm*tm;
+					vx = initVx + 0.5*ax*tm;
 					if (sx < pw-w)
-						animX = createSmoothInterpolator(bumpAnimDuration, sx, pw-w, vx+ax*tm, 0, -tm);
+						animX = createSmoothInterpolator(bumpAnimDuration, sx, pw-w, initVx+ax*tm, 0, -tm);
 					else if (sx > 0)
-						animX = createSmoothInterpolator(bumpAnimDuration, sx, 0, vx+ax*tm, 0, -tm);
+						animX = createSmoothInterpolator(bumpAnimDuration, sx, 0, initVx+ax*tm, 0, -tm);
 					if (animX)
 						animEndT = Math.max(animEndT, tm + bumpAnimDuration);
 		 		}
-		 		if (animY)
+		 		if (animY) {
 					sy = animY(t);
+					vy = animY(t, true);
+		 		}
 		  		else {
-					sy = sy0 + vy*tm + 0.5*ay*tm*tm;
+					sy = sy0 + initVy*tm + 0.5*ay*tm*tm;
+					vy = initVy + 0.5*ay*tm;
 					if (sy < ph-h)
-			  			animY = createSmoothInterpolator(bumpAnimDuration, sy, ph-h, vy+ay*tm, 0, -tm);
+			  			animY = createSmoothInterpolator(bumpAnimDuration, sy, ph-h, initVy+ay*tm, 0, -tm);
 					else if (sy > 0)
-			  			animY = createSmoothInterpolator(bumpAnimDuration, sy, 0, vy+ay*tm, 0, -tm);
+			  			animY = createSmoothInterpolator(bumpAnimDuration, sy, 0, initVy+ay*tm, 0, -tm);
 					if (animY)
 						animEndT = Math.max(animEndT, tm + bumpAnimDuration);
 				}
 				if (t >= animEndT) {
 					sx = Math.max(pw-w, Math.min(0, sx));
 					sy = Math.max(ph-h, Math.min(0, sy));
+					vx = vy = 0;
 					stop();
 					movementEndED.trigger();
 		  		}
-				content.set({$left: Math.round(sx)+'px', $top: Math.round(sy)+'px'});
+				setPos();
 			});
 			touchEndED.trigger();
 		}, options);
@@ -426,14 +478,14 @@ define('touchScroll' , function(require) {
 			onTouchMove:   touchMoveED.on,   offTouchMove:   touchMoveED.off,
 			onTouchEnd:    touchEndED.on,    offTouchEnd:    touchEndED.off,
 			onMovementEnd: movementEndED.on, offMovementEnd: movementEndED.off,
-			move: move
+			move: move, moveTo: moveTo, position: position
 		};
 	}
 
 	$(function() {
 		$('.touchScroll').each(function(el) {
 			var opts = getDataOptions(el, ['%deceleration', '%bumpAnimDuration', '%initialPosition', '%axis', '%scrollAlways',
-					'%touchAnimation']);
+					'%touchAnimation', '%velocityEvalTime', '%velocitySamples', '%velocityMax']);
 			touchScroll(el, null, opts);
 		});
 	});
