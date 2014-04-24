@@ -116,22 +116,28 @@ define('niagara-ui', function(require) {
 	// options = {
 	//   velocityEvalTime: 250,     // max number of milliseconds to get avg current speed
 	//   velocitySamples:  4,       // number of samples to determine speed. Must be >1.
-	//   velocityMax:      1000    // max velocity in px/s
+	//   velocityMax:      1000,    // max velocity in px/s
+	//   maxClickDuration: 750,     // if touch longer than this in ms, it's not a click
+	//   maxClickTravel:   5        // if that many pixels have been moved, it's not a click
 	// }
  	// Returns event dispatchers:
- 	// function onStart(el, event); // event is the MouseEvent that started the op
-	// function onMove(el, dx, dy); // delta x/y since last invocation
-	// function onFinish(el, sx, sy); // speed px/s for x/y at end of touch
+ 	// function onStart(event); // event is the MouseEvent that started the op
+	// function onMove(dx, dy); // delta x/y since last invocation
+	// function onFinish(sx, sy); // speed px/s for x/y at end of touch
+	// function onClick()
 	function touchMover(element, options) {
 		var opts = options || {};
 		var velocityEvalTime = getFloat(opts.velocityEvalTime, 250);
 		var velocitySamples = getFloat(opts.velocitySamples, 4);
 		var velocityMax = getFloat(opts.velocityMax, 1000);
+		var maxClickDuration = getFloat(opts.maxClickDuration, 750);
+		var maxClickTravel = getFloat(opts.maxClickTravel, 5);
 		var list = $(element).only(0);
 		 
 		var onStartED = createEventDispatcher(list);
 		var onMoveED = createEventDispatcher(list);
 		var onFinishED = createEventDispatcher(list);
+		var onClickED = createEventDispatcher(list);
 
 		var stopMove;  // function(e) to stop touch, null if not in touch
 		var touchId;   // the id of the current touch. null for mouse events.
@@ -143,7 +149,9 @@ define('niagara-ui', function(require) {
 			var touch = ev.changedTouches ? ev.changedTouches[0] : ev;
 			var x0 = touch.screenX, y0 = touch.screenY;      // values at last mouse event
 			var t0 = +new Date();                       // time of the last event
-			var lastDx = [], lastDy = [], lastT = [];  // last vx/vy and t, up to velocitySamples
+			var tStart = t0;                            // begin of the touch
+			var lastDx = [], lastDy = [], lastT = [];   // last vx/vy and t, up to velocitySamples
+			var travelDistance = 0;                     // distance travelled during touch (to determine clicks)
 
 			touchId = ev.changedTouches ? ev.changedTouches[0].identifier : null;
 		 
@@ -161,6 +169,7 @@ define('niagara-ui', function(require) {
 				    dx = nx-x0, dy = ny-y0, dt = Math.max(t - t0, 1);
 				if (dx||dy)
 					onMoveED(dx, dy);
+				travelDistance += Math.abs(dx) + Math.abs(dy); // avoid using sqrt() here. precision not required
 
 				while ((lastT[0] && lastT[0] < t-velocityEvalTime) || lastT.length >= velocitySamples) {
 					lastDx.pop();
@@ -190,8 +199,8 @@ define('niagara-ui', function(require) {
 				stopMove = null;
 				touchId = null;
 
+				var t = +new Date();
 				if (onFinishED.hasHandlers()) {
-					var t = +new Date();
 					var starT = lastT[0], endT = starT;
 					var sx = 0, sy = 0;
 					var startPos = 1;
@@ -207,6 +216,8 @@ define('niagara-ui', function(require) {
 					var dt = Math.max(endT - starT, 1);
 					onFinishED(absLimit(sx/dt*1000, velocityMax), absLimit(sy/dt*1000, velocityMax));
 				}
+				if ((t - tStart <= maxClickDuration) && (travelDistance <= maxClickTravel))
+					onClickED();
 			}
 	
 			stopMove = mouseEnd;
@@ -218,7 +229,7 @@ define('niagara-ui', function(require) {
 		
 		list.on('mousedown touchstart', start);
 
-		return {onStart: onStartED.on, onMove: onMoveED.on, onFinish: onFinishED.on};
+		return {onStart: onStartED.on, onMove: onMoveED.on, onFinish: onFinishED.on, onClick: onClickED.on};
   	}
 
   	function isSvgPossible() {
@@ -316,8 +327,12 @@ define('touchScroll' , function(require) {
 	//   offTouchMove: function(handler){}    // unregisters onTouchMove handler	
 	//	 onTouchEnd: function(handler){}      // to register a handler to be called when user touch ends (lifts finger or releases mouse)
 	//   offTouchEnd: function(handler){}     // unregisters onTouchEnd handler	
+	//	 onMovementStart: function(handler){} // to register a handler to be called when the animation after touch or move() starts
+	//   offMovementStart: function(handler){}// unregisters onMovementStart handler	
 	//	 onMovementEnd: function(handler){}   // to register a handler to be called when the animation after the touch ends
 	//   offMovementEnd: function(handler){}  // unregisters onMovementEnd handler	
+	//	 onClick: function(handler){}         // to register a handler to be called when user clicks
+	//   offClick: function(handler){}        // unregisters onClick handler
 	//}
 
 	function touchScroll(parent, content, options) {
@@ -340,6 +355,7 @@ define('touchScroll' , function(require) {
 		var touchEndED = createEventDispatcher(parent);
 		var movementStartED = createEventDispatcher(parent);
 		var movementEndED = createEventDispatcher(parent);
+		var clickED = createEventDispatcher(parent);
 
 		var opts = options || {};
 		var deceleration = getFloat(opts.deceleration, 400) / 1000000;      // deceleration in px/s^2
@@ -435,6 +451,7 @@ define('touchScroll' , function(require) {
 		}
 
 		var tmv = touchMover(parent, options);
+		tmv.onClick(clickED);
 		tmv.onStart(function() {
 			stopAnimation();
 			touchStartED();
@@ -506,6 +523,7 @@ define('touchScroll' , function(require) {
 			onTouchEnd:    touchEndED.on,    offTouchEnd:    touchEndED.off,
 			onMovementStart: movementStartED.on, offMovementStart: movementStartED.off,
 			onMovementEnd: movementEndED.on, offMovementEnd: movementEndED.off,
+			onClick: clickED.on, offClick: clickED.off,
 			move: move, moveTo: moveTo, position: position, changeContent: changeContent
 		};
 	}

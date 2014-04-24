@@ -37,6 +37,9 @@
 				ts.changeContent(img);
 				imgOrig = !imgOrig;
 			});
+			ts.onClick(function() {
+				$('#clicked').set({$color: '#000'}).animate({$color: '#fff'}, 750);
+			});
   		});
   	</script>
 	</head>
@@ -54,7 +57,7 @@
 			</div>
 			<div><button id="leftBtn">Left</button><button id="upBtn">Up</button><button id="downBtn">Down</button><button id="rightBtn">Right</button></div>
 			<div><button id="topLeftBtn">Top-Left</button><button id="centerBtn">Center</button><button id="bottomRightBtn">Bottom-Right</button></div>
-			<div><button id="swapImgBtn">Swap Image</button></div>
+			<div><button id="swapImgBtn">Swap Image</button> <span id="clicked" style="color: #fff">Clicked</span></div>
 
 		</div>		
 	</body>
