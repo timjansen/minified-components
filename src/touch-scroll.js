@@ -87,23 +87,22 @@ define('niagara-ui', function(require) {
 	// returns an event dispatcher that can register/unregister handlers and trigger events for them.
 	function createEventDispatcher(obj) {
 		var handlers = [];
-		return {
-			on: function(handler) {
-				handlers.push(handler);
-			},
-			off: function(handler) {
-				for (var i = 0; i < handlers.length; i++)
-					if (handlers[i] === handler)
-						handlers.slice(i--, 1);
-			},
-			trigger: function() {
-				if (handlers.length)
-					_.call(handlers, obj, arguments);
-			},
-			hasHandlers: function() {
-				return !!handlers.length;
-			}
+		function trigger() {
+			if (handlers.length)
+				_.call(handlers, obj, arguments);
+		}
+		trigger.on = function(handler) {
+			handlers.push(handler);
 		};
+		trigger.off = function(handler) {
+			for (var i = 0; i < handlers.length; i++)
+				if (handlers[i] === handler)
+					handlers.slice(i--, 1);
+		};
+		trigger.hasHandlers = function() {
+			return !!handlers.length;
+		};
+		return trigger;
 	}
 
 
@@ -135,7 +134,7 @@ define('niagara-ui', function(require) {
 		var onFinishED = createEventDispatcher(list);
 
 		var stopMove;  // function(e) to stop touch, null if not in touch
-		var touchId;   // if not null, the id of the current touch
+		var touchId;   // the id of the current touch. null for mouse events.
 		
 		function start(ev, index) {
 			if (stopMove)
@@ -160,8 +159,8 @@ define('niagara-ui', function(require) {
 					touch = e;
 				var nx = touch.screenX, ny = touch.screenY,
 				    dx = nx-x0, dy = ny-y0, dt = Math.max(t - t0, 1);
-				if ((dx||dy))
-					onMoveED.trigger(el, dx, dy);
+				if (dx||dy)
+					onMoveED(dx, dy);
 
 				while ((lastT[0] && lastT[0] < t-velocityEvalTime) || lastT.length >= velocitySamples) {
 					lastDx.pop();
@@ -206,7 +205,7 @@ define('niagara-ui', function(require) {
 					}
 
 					var dt = Math.max(endT - starT, 1);
-					onFinishED.trigger(el, absLimit(sx/dt*1000, velocityMax), absLimit(sy/dt*1000, velocityMax));
+					onFinishED(absLimit(sx/dt*1000, velocityMax), absLimit(sy/dt*1000, velocityMax));
 				}
 			}
 	
@@ -214,7 +213,7 @@ define('niagara-ui', function(require) {
 			this.on('mousemove touchmove', mouseMove);
 			this.on('mouseup |mouseout touchend touchcancel touchleave' , mouseEnd);
 
-			onStartED.trigger(el, ev);
+			onStartED(ev);
 		}
 		
 		list.on('mousedown touchstart', start);
@@ -370,7 +369,7 @@ define('touchScroll' , function(require) {
 		function stopAnimation() {
 			if (animLoopStop) {
 				animLoopStop();
-				movementEndED.trigger();
+				movementEndED();
 				animLoopStop = null;
 			}
 		}
@@ -383,7 +382,7 @@ define('touchScroll' , function(require) {
         function moveToInternal(x, y, smoothT) {
         	stopAnimation();
             if (smoothT) {
-            	movementStartED.trigger();
+            	movementStartED();
             	var animX = createSmoothInterpolator(smoothT, sx, x, vx, 0);
 				var animY = createSmoothInterpolator(smoothT, sy, y, vy, 0);
 				animLoopStop = $.loop(function(t) {
@@ -426,23 +425,25 @@ define('touchScroll' , function(require) {
 		function changeContent(newContent, initialX, initialY) {
 			var nc = $(newContent).only(0);
 			content.replace(nc);
+			content = nc;
+			content.set({$position: 'absolute'}); 
 			w = nc.get('clientWidth', true);
 			h = nc.get('clientHeight', true);
-			var x = initialX != null ? initialX : (pw-w)/2;
-			var y = initialY != null ? initialY : (ph-h)/2;
+			var x = initialX != null ? initialX : (w-pw)/2;
+			var y = initialY != null ? initialY : (h-ph)/2;
 			moveTo(x, y);
 		}
 
 		var tmv = touchMover(parent, options);
 		tmv.onStart(function() {
 			stopAnimation();
-			touchStartED.trigger();
+			touchStartED();
 		});
-		tmv.onMove(function(el, dx, dy) {
+		tmv.onMove(function(dx, dy) {
 			move(dx, dy);
-			touchMoveED.trigger(dx, dy);
+			touchMoveED(dx, dy);
 		});
-		tmv.onFinish(function(el, initVxS, initVyS) {
+		tmv.onFinish(function(initVxS, initVyS) {
 			var initVx = axisX ? initVxS / 1000 : 0;
 			var initVy = axisY ? initVyS / 1000 : 0;
 			var sx0 = sx;
@@ -455,7 +456,7 @@ define('touchScroll' , function(require) {
 			var animX, animY;
 			var animEndT = maxT;
 
-			movementStartED.trigger();
+			movementStartED();
 
 			animLoopStop = $.loop(function(t, stop) {
 				var tm = Math.min(t, maxT);
@@ -492,11 +493,11 @@ define('touchScroll' , function(require) {
 					sy = Math.max(ph-h, Math.min(0, sy));
 					vx = vy = 0;
 					stop();
-					movementEndED.trigger();
+					movementEndED();
 		  		}
 				setPos();
 			});
-			touchEndED.trigger();
+			touchEndED();
 		});
 
 		return {

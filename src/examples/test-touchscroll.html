@@ -12,6 +12,8 @@
   		var NIAGARA = require('minified'), $ = NIAGARA.$, $$=NIAGARA.$$, EE = NIAGARA.EE, HTML = NIAGARA.HTML;
   		var _ = NIAGARA._;
   		var touchScroll = require('touchScroll');
+
+  		var imgOrig = true;
   	
   		$(function() {
   			var ts = touchScroll('#ts2');
@@ -28,6 +30,12 @@
 			$('#bottomRightBtn').onClick(function() {
 				var pos = ts.position();
 				ts.moveTo(pos.w-pos.viewW, pos.h-pos.viewH, 400);
+			});
+			$('#swapImgBtn').onClick(function() {
+				var img = EE('img', {src: imgOrig ? 'imgs/niagara-small.jpg' : 'imgs/niagara-large.jpg', 
+									 $$:  imgOrig ? "width: 800px; height: 451px;" : "width: 4320px; height: 2432px;"});
+				ts.changeContent(img);
+				imgOrig = !imgOrig;
 			});
   		});
   	</script>
@@ -46,6 +54,7 @@
 			</div>
 			<div><button id="leftBtn">Left</button><button id="upBtn">Up</button><button id="downBtn">Down</button><button id="rightBtn">Right</button></div>
 			<div><button id="topLeftBtn">Top-Left</button><button id="centerBtn">Center</button><button id="bottomRightBtn">Bottom-Right</button></div>
+			<div><button id="swapImgBtn">Swap Image</button></div>
 
 		</div>		
 	</body>
