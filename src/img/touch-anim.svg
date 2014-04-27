@@ -1,6 +1,7 @@
-<svg width="110" height="100" xmlns="http://www.w3.org/2000/svg">
- <g stroke="#000" fill="#000">
-     <circle cx="24" cy="10" r="0">
+<svg width="110" height="95" xmlns="http://www.w3.org/2000/svg">
+ <g stroke="#000">
+ 	<rect x="0" y="0" width="110" height="95" rx="8" ry="8" opacity="0.6"/>
+    <circle cx="24" cy="17" r="0" fill="#fff">
           <animate id="touchDown" 
                  attributeType="XML" attributeName="r"
                  to="8"
@@ -18,7 +19,7 @@
                  to="24"
                  begin="hand.begin+3000ms"/>
      </circle>
-     <circle cx="24" cy="10" r="8" fill="none" opacity="0" stroke-width="2">
+     <circle cx="24" cy="17" r="8" fill="none" opacity="0" stroke-width="2" stroke="#fff">
          <animate id="touchCircleFadeIn" 
                  attributeType="XML" attributeName="opacity"
                  to="1"
@@ -36,7 +37,7 @@
                  to="24"
                  begin="touchCircleFadeOut.end"/>
      </circle>
-     <path d="m24,80c0,-4 1,-5 -5,-14c-6,-9 -5,-6 -12,-17c-4,-6 4,-7 7,-3l6,6l0,-27c0,-4 8,-4 8,0l0,27l0,-14c0,-3 7,-3 7,0l0,14l0,-14c0,-3 7,-3 7,0l0,14l0,-11c0,-3 6,-3 6,0c0,4 0,17 -3,24c-3,7 -6,11 -6,15" stroke-width="3" fill="#fff">
+     <path d="m24,87c0,-4 1,-5 -5,-14c-6,-9 -5,-6 -12,-17c-4,-6 4,-7 7,-3l6,6l0,-27c0,-4 8,-4 8,0l0,27l0,-14c0,-3 7,-3 7,0l0,14l0,-14c0,-3 7,-3 7,0l0,14l0,-11c0,-3 6,-3 6,0c0,4 0,17 -3,24c-3,7 -6,11 -6,15" stroke-width="3" fill="#fff">
          <animateTransform id="hand"
                  attributeType="XML" attributeName="transform"
                  type="translate"
@@ -45,12 +46,11 @@
                  values="0 0 ; 0 -10 ; 0 -10 ; 50 -10 ; 50 0 ; 50 0 ; 0 0"
                  dur="5s" begin="touchCircleFadeIn.end"  fill="freeze"/>
      </path>
-     <path d="m40,10l0,-3l20,0l0,-3l6,6l-6,6l0,-3l-20,0l0,-3z"  fill="#fff" stroke-width="1">
+     <path d="m40,17l0,-3l20,0l0,-3l6,6l-6,6l0,-3l-20,0l0,-3z"  fill="#fff" stroke-width="1">
          <set id="removeArrow" 
                  attributeType="XML" attributeName="opacity"
                  to="0"
                  begin="0s" fill="freeze"/>
      </path>
-    
  </g>
 </svg>

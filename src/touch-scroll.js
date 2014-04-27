@@ -46,6 +46,13 @@ define('niagara-ui', function(require) {
 			return parseFloat(str);
 	}
 
+	function toPx(number) {
+		if (!_.isNumber(number) && /[a-zA-Z]\s*$/.test(number))
+			return number;
+		else
+			return number + 'px';
+	}
+
 	/**
 	 * Creates an interpolation function that will smoothly interpolate from the given start value and velocity
 	 * to the given target value with the given target velocity.
@@ -280,6 +287,7 @@ define('niagara-ui', function(require) {
 		getDataOptions: getDataOptions,
 		getBool: getBool,
 		getFloat: getFloat,
+		toPx: toPx,
 		createEventDispatcher: createEventDispatcher,
 		absLimit: absLimit,
 		absReduce: absReduce,
@@ -307,6 +315,7 @@ define('touchScroll' , function(require) {
 	var createEventDispatcher = niaUI.createEventDispatcher;
 	var touchMover = niaUI.touchMover;
 	var isSvgPossible = niaUI.isSvgPossible;
+	var toPx = niaUI.toPx;
 
 
 	// parent: a <div> or similar element. Should have fixed size. touchScroll will set relative positioning if it is not already positioned and $overflow=hidden.
@@ -317,7 +326,8 @@ define('touchScroll' , function(require) {
 	//   initialPosition: {x: 0, y: 0}, // initial position in px. Will be centered if not set. Alt syntax: "x, y"
 	//   axis: 'both',                  // 'x' to move only x-axis, 'y' for y-axis
 	//   scrollAlways: false,           // if set true, touch scrolling is supported even when content fits
-	//   touchAnimation: true,          // if true, show a touch animation to explain how to use this. default: true
+	//   showInstructions: true,          // if true, show a touch animation to explain how to use this. default: true
+	//   instructionParams: {src: '/img/touch-anim.svg', width: 110, height: 100}  // use your own image or animation here.  width/height as number in px
 	// } 
 	// 
 	// Returns: {
@@ -350,6 +360,8 @@ define('touchScroll' , function(require) {
 		var pw = parent.get('clientWidth', true);
 		var ph = parent.get('clientHeight', true);
 
+		var instructions; // element list to remove or null
+
 		var touchStartED = createEventDispatcher(parent);
 		var touchMoveED = createEventDispatcher(parent);
 		var touchEndED = createEventDispatcher(parent);
@@ -365,10 +377,17 @@ define('touchScroll' , function(require) {
 		var axis = opts.axis || 'both';
 		var axisX = axis != 'y' && (scrollAlways || pw<w);
 		var axisY = axis != 'x' && (scrollAlways || ph<h);
-		var touchAnimation = getBool(opts.touchAnimation, isSvgPossible());
+		var showInstructions = getBool(opts.showInstructions, true);
+		var instructionParams = opts.instructionParams || {src: '/img/touch-anim.svg', width: 110, height: 100};
 
 		if (_.isString(initialPosition))
 			initialPosition = {x: parseFloat(initialPosition.replace(/,.*/, '')), y: parseFloat(initialPosition.replace(/.*,/, ''))};
+		if (_.isString(instructionParams)) {
+			var ia  = instructionParams.split(/\s*;\s*/);
+			if (ia.length < 3)
+				showInstructions = false;
+			instructionParams = {src: ia[0], width: parseFloat(ia[1]), height: parseFloat(ia[2])};
+		}
 
 		parent.set({$overflow: 'hidden'});
 		content.set({$position: 'absolute', 
@@ -376,6 +395,13 @@ define('touchScroll' , function(require) {
 					 $top: -Math.round(initialPosition.y)+'px'});
 		if (!/relative|absolute|fixed|sticky/.test(parent.get('$position')))
 			parent.set({$position: 'relative'});
+
+		if (showInstructions && (isSvgPossible() || !/\.svg$/.test(instructionParams.src))) {
+			parent.add(instructions = EE('img', {src: instructionParams.src, $position: 'absolute', 
+				$width: toPx(instructionParams.width), $height: toPx(instructionParams.height),
+				$left: toPx(Math.round((pw - instructionParams.width)/2)),
+				$top: toPx(Math.round((ph - instructionParams.height)/2))}));
+		}
 
 		var sx = content.get('offsetLeft', true); // position of the image
 		var sy = content.get('offsetTop', true);  
@@ -453,6 +479,10 @@ define('touchScroll' , function(require) {
 		var tmv = touchMover(parent, options);
 		tmv.onClick(clickED);
 		tmv.onStart(function() {
+			if (instructions) {
+				instructions.remove();
+				instructions = null;
+			}
 			stopAnimation();
 			touchStartED();
 		});
@@ -531,7 +561,7 @@ define('touchScroll' , function(require) {
 	$(function() {
 		$('.touchScroll').each(function(el) {
 			var opts = getDataOptions(el, ['%deceleration', '%bumpAnimDuration', '%initialPosition', '%axis', '%scrollAlways',
-					'%touchAnimation', '%velocityEvalTime', '%velocitySamples', '%velocityMax']);
+					'%showInstructions', '%instructionParams', '%velocityEvalTime', '%velocitySamples', '%velocityMax']);
 			touchScroll(el, null, opts);
 		});
 	});

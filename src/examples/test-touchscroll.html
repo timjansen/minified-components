@@ -16,7 +16,7 @@
   		var imgOrig = true;
   	
   		$(function() {
-  			var ts = touchScroll('#ts2');
+  			var ts = touchScroll('#ts2', null, {showInstructions: false});
 			$('#leftBtn').onClick(ts.move, [40, 0, 200]);
 			$('#upBtn').onClick(ts.move, [0, 40, 200]);
 			$('#downBtn').onClick(ts.move, [0, -40, 200]);

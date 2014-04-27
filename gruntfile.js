@@ -73,6 +73,14 @@ module.exports = function(grunt) {
 		            dest: 'webContent/test/'
 			    }]
 			},
+			imgs: {
+				files: [{
+		            expand: true,
+		            cwd: 'src/img',
+		            src: ['*.*'],
+		            dest: 'webContent/img/'
+			    }]
+			},
 			dist: {
 				files: [{
 			        expand: true,
