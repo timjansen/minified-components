@@ -112,6 +112,27 @@ define('niagara-ui', function(require) {
 		return trigger;
 	}
 
+	function createToggle(f1, f2opt) {
+		var f2 = f2opt || f1;
+		var state = false;
+		var toggle = function(tog) {
+			if (tog !== state) {
+				if (tog === true || tog === false) {
+					if (state = tog)
+						f2(true);
+					else
+						f1(false);
+				}
+				else
+					toggle(!state);
+			}
+		};
+		toggle.override = function(tog) {
+			state = !!tog;
+		}
+		return toggle;
+	}
+
 
 	function findTouch(touchEvent, id) {
 		return touchEvent.touches ? _.find(touchEvent.touches, function(t) {
@@ -122,7 +143,7 @@ define('niagara-ui', function(require) {
 	// element: any param for $()
 	// options = {
 	//   velocityEvalTime: 250,     // max number of milliseconds to get avg current speed
-	//   velocitySamples:  4,       // number of samples to determine speed. Must be >1.
+	//   velocitySamples:  3,       // number of samples to determine speed. Must be >1.
 	//   velocityMax:      1000,    // max velocity in px/s
 	//   maxClickDuration: 750,     // if touch longer than this in ms, it's not a click
 	//   maxClickTravel:   5        // if that many pixels have been moved, it's not a click
@@ -135,7 +156,7 @@ define('niagara-ui', function(require) {
 	function touchMover(element, options) {
 		var opts = options || {};
 		var velocityEvalTime = getFloat(opts.velocityEvalTime, 250);
-		var velocitySamples = getFloat(opts.velocitySamples, 4);
+		var velocitySamples = getFloat(opts.velocitySamples, 3);
 		var velocityMax = getFloat(opts.velocityMax, 1000);
 		var maxClickDuration = getFloat(opts.maxClickDuration, 750);
 		var maxClickTravel = getFloat(opts.maxClickTravel, 5);
@@ -256,11 +277,27 @@ define('niagara-ui', function(require) {
   		});
   	}
 
-  	// sets the given element to fullscreen. Returns the current element, or null/undef if failed.
-	function setFullscreen(el) {
+  	// sets the given element to fullscreen. 
+  	// The toggle is invoked with true if FS is entered and false if exited.
+	function setFullscreen(el, toggle) {
+		el = $$(el);
 		var name = _('requestFullscreen', 'mozRequestFullScreen', 'webkitRequestFullscreen', 'msRequestFullscreen').find(function(name) {
 			return el[name] && name;
 		});
+
+		if (toggle)
+			$(document).on('|fullscreenchange |webkitfullscreenchange |mozfullscreenchange |msfullscreenchange', function handler(e) {
+				var fsEl = _('fullscreenElement', 'mozFullScreenElement', 'webkitFullscreenElement', 'msFullscreenElement').find(function(name) {
+					return document[name];
+				});
+				if (fsEl == el)
+					toggle(true);
+				else if (!fsEl) {
+					toggle(false);
+					$.off(handler);
+				}
+			});
+
 		if (name && name == 'webkitRequestFullscreen')
 			el.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
 		else if (name)
@@ -268,9 +305,7 @@ define('niagara-ui', function(require) {
 		else
 			return null;
 
-		return _('fullscreenElement', 'mozFullScreenElement', 'webkitFullscreenElement', 'msFullscreenElement').find(function(name) {
-			return document[name];
-		});
+		return 
 	}
 
 	// exits the current fullscreen
@@ -289,6 +324,7 @@ define('niagara-ui', function(require) {
 		getFloat: getFloat,
 		toPx: toPx,
 		createEventDispatcher: createEventDispatcher,
+		createToggle: createToggle,
 		absLimit: absLimit,
 		absReduce: absReduce,
 		createSmoothInterpolator: createSmoothInterpolator,
@@ -316,6 +352,9 @@ define('touchScroll' , function(require) {
 	var touchMover = niaUI.touchMover;
 	var isSvgPossible = niaUI.isSvgPossible;
 	var toPx = niaUI.toPx;
+	var setFullscreen = niaUI.setFullscreen;
+	var exitFullscreen = niaUI.exitFullscreen;
+	var createToggle = niaUI.createToggle;
 
 
 	// parent: a <div> or similar element. Should have fixed size. touchScroll will set relative positioning if it is not already positioned and $overflow=hidden.
@@ -326,8 +365,9 @@ define('touchScroll' , function(require) {
 	//   initialPosition: {x: 0, y: 0}, // initial position in px. Will be centered if not set. Alt syntax: "x, y"
 	//   axis: 'both',                  // 'x' to move only x-axis, 'y' for y-axis
 	//   scrollAlways: false,           // if set true, touch scrolling is supported even when content fits
-	//   showInstructions: true,          // if true, show a touch animation to explain how to use this. default: true
-	//   instructionParams: {src: '/img/touch-anim.svg', width: 110, height: 100}  // use your own image or animation here.  width/height as number in px
+	//   showInstructions: true,        // if true, show a touch animation to explain how to use this. default: true
+	//   instructionParams: {src: '/img/touch-anim.svg', width: 110, height: 100},  // use your own image or animation here.  width/height as number in px
+	//   showFullscreenButton: true,    // if true, shows a fullscreen button in the lower right corner
 	// } 
 	// 
 	// Returns: {
@@ -343,6 +383,13 @@ define('touchScroll' , function(require) {
 	//   offMovementEnd: function(handler){}  // unregisters onMovementEnd handler	
 	//	 onClick: function(handler){}         // to register a handler to be called when user clicks
 	//   offClick: function(handler){}        // unregisters onClick handler
+	//   move: function(dx, dy, t)            // Changes position by dx/dy. Clipped. Optionally animated, duration t ms
+	//   moveTo: function(x, y, t)            // Moves to position. Optionally animated, duration t ms
+	//   changeContent: function(content, x, y) // replaces current content with given element. Optionally position to x/y (default centers)
+	//   position: function()                 // returns object {x: 0, y: 0, vx: 0, vy: 0, w: 0, h: 0, viewW: 0, viewH: 0}
+	//                                        // with position (x/y), current velocity in px/s (vx/vy), content size (w/h) and view size (viewW/viewH)
+    //	 changeViewSize: function(w, h)       // call when you modify view size
+    //	 toggleFullscreen: function(tog)      // toggle function to enable/disable fullscreen
 	//}
 
 	function touchScroll(parent, content, options) {
@@ -361,6 +408,7 @@ define('touchScroll' , function(require) {
 		var ph = parent.get('clientHeight', true);
 
 		var instructions; // element list to remove or null
+		var preFullscreenSize; // stores width/height during fullscreen
 
 		var touchStartED = createEventDispatcher(parent);
 		var touchMoveED = createEventDispatcher(parent);
@@ -368,6 +416,7 @@ define('touchScroll' , function(require) {
 		var movementStartED = createEventDispatcher(parent);
 		var movementEndED = createEventDispatcher(parent);
 		var clickED = createEventDispatcher(parent);
+		var fullscreenED = createEventDispatcher(parent);
 
 		var opts = options || {};
 		var deceleration = getFloat(opts.deceleration, 400) / 1000000;      // deceleration in px/s^2
@@ -421,7 +470,7 @@ define('touchScroll' , function(require) {
         }
 
         // works with real (negative) coordinates, not user coordinates
-        function moveToInternal(x, y, smoothT) {
+        function moveToInternal(x, y, clip, smoothT) {
         	stopAnimation();
             if (smoothT) {
             	movementStartED();
@@ -429,7 +478,7 @@ define('touchScroll' , function(require) {
 				var animY = createSmoothInterpolator(smoothT, sy, y, vy, 0);
 				animLoopStop = $.loop(function(t) {
 					if (t >= smoothT)
-						moveToInternal(x, y);
+						moveToInternal(x, y, false);
 					else {
 						sx = animX(t);
 						sy = animY(t);
@@ -440,24 +489,36 @@ define('touchScroll' , function(require) {
 				});
 			}
 			else {
-				sx = x;
-				sy = y;
+				if (clip) {
+					if (pw < w)
+						sx = Math.max(pw-w, Math.min(x, 0));
+					else
+						sx = (pw-w)/2;
+					if (ph < h)
+						sy = Math.max(ph-h, Math.min(y, 0));
+					else
+						sy = (ph-h)/2;
+				}
+				else {
+					sx = x;
+					sy = y;
+				}
 				vx = vy = 0;
 				setPos();
 			}
 		}
 
 		function moveTo(x, y, smoothT) {
-			moveToInternal(-x, -y, smoothT);
+			moveToInternal(-x, -y, false, smoothT);
 		}
-         
+
 		function move(dx, dy, smoothT) {
 			var x = sx, y = sy;
-			if (axisX)
-				x = Math.max(pw-w, Math.min(sx+dx, 0));
-			if (axisY)
-				y = Math.max(ph-h, Math.min(sy+dy, 0));
-			moveToInternal(x, y, smoothT);
+			if (axisX && w > pw)
+				x = sx+dx;
+			if (axisY && h > ph)
+				y = sy+dy;
+			moveToInternal(x, y, true, smoothT);
 		}
 
 		function position() {
@@ -476,6 +537,37 @@ define('touchScroll' , function(require) {
 			moveTo(x, y);
 		}
 
+		function changeViewSize(newW, newH, newX, newY) {
+			var cx = sx - pw/2, cy = sy - ph/2; // center coords before size change
+			if (newH != null) {
+				pw = newW;
+				ph = newH;
+			}
+			else {
+				pw = parent.get('clientWidth', true);
+				ph = parent.get('clientHeight', true);
+			}
+			if (newY != null)
+				moveTo(newX, newY);
+			else 
+				moveToInternal(cx + pw/2, cy + ph/2, true);
+		}
+
+		
+
+ 		var toggleFullscreen = createToggle(exitFullscreen, function() {
+			preFullscreenSize = parent.get(['$width', '$height'])
+			setFullscreen(parent, function fullscreenHandler(tog) {
+				if (tog)
+					parent.set({$width: '100%', $height: '100%'});
+				else
+					parent.set(preFullscreenSize);
+				toggleFullscreen.override(tog);
+				changeViewSize();
+				fullscreenED(tog);
+			});
+		});
+
 		var tmv = touchMover(parent, options);
 		tmv.onClick(clickED);
 		tmv.onStart(function() {
@@ -491,8 +583,10 @@ define('touchScroll' , function(require) {
 			touchMoveED(dx, dy);
 		});
 		tmv.onFinish(function(initVxS, initVyS) {
-			var initVx = axisX ? initVxS / 1000 : 0;
-			var initVy = axisY ? initVyS / 1000 : 0;
+			var canAnimateX = axisX && w>pw;
+			var canAnimateY = axisY && h>ph;
+			var initVx = canAnimateX ? initVxS / 1000 : 0;
+			var initVy = canAnimateY ? initVyS / 1000 : 0;
 			var sx0 = sx;
 			var sy0 = sy;
 			var v = Math.sqrt(initVx*initVx+initVy*initVy);
@@ -511,7 +605,7 @@ define('touchScroll' , function(require) {
 					sx = animX(t);
 					vx = animX(t, true);
 				}
-				else {
+				else if (canAnimateX) {
 					sx = sx0 + initVx*tm + 0.5*ax*tm*tm;
 					vx = initVx + 0.5*ax*tm;
 					if (sx < pw-w)
@@ -525,7 +619,7 @@ define('touchScroll' , function(require) {
 					sy = animY(t);
 					vy = animY(t, true);
 		 		}
-		  		else {
+		  		else if (canAnimateY) {
 					sy = sy0 + initVy*tm + 0.5*ay*tm*tm;
 					vy = initVy + 0.5*ay*tm;
 					if (sy < ph-h)
@@ -535,9 +629,12 @@ define('touchScroll' , function(require) {
 					if (animY)
 						animEndT = Math.max(animEndT, tm + bumpAnimDuration);
 				}
+				
 				if (t >= animEndT) {
-					sx = Math.max(pw-w, Math.min(0, sx));
-					sy = Math.max(ph-h, Math.min(0, sy));
+					if (canAnimateX)
+						sx = Math.max(pw-w, Math.min(0, sx));
+					if (canAnimateY)
+						sy = Math.max(ph-h, Math.min(0, sy));
 					vx = vy = 0;
 					stop();
 					movementEndED();
@@ -554,7 +651,9 @@ define('touchScroll' , function(require) {
 			onMovementStart: movementStartED.on, offMovementStart: movementStartED.off,
 			onMovementEnd: movementEndED.on, offMovementEnd: movementEndED.off,
 			onClick: clickED.on, offClick: clickED.off,
-			move: move, moveTo: moveTo, position: position, changeContent: changeContent
+			onFullscreen: fullscreenED.on, offFullscreen: fullscreenED.off,
+			move: move, moveTo: moveTo, position: position, changeContent: changeContent,
+			changeViewSize: changeViewSize, toggleFullscreen: toggleFullscreen
 		};
 	}
 

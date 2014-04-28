@@ -16,7 +16,7 @@
   		var imgOrig = true;
   	
   		$(function() {
-  			var ts = touchScroll('#ts2', null, {showInstructions: false});
+  			var ts = touchScroll('#ts2', null, {showInstructions: false, showFullscreenButton: false});
 			$('#leftBtn').onClick(ts.move, [40, 0, 200]);
 			$('#upBtn').onClick(ts.move, [0, 40, 200]);
 			$('#downBtn').onClick(ts.move, [0, -40, 200]);
@@ -37,6 +37,7 @@
 				ts.changeContent(img);
 				imgOrig = !imgOrig;
 			});
+			$('#fullscreenBtn').onClick(ts.toggleFullscreen);
 			ts.onClick(function() {
 				$('#clicked').set({$color: '#000'}).animate({$color: '#fff'}, 750);
 			});
@@ -53,11 +54,12 @@
 
 			<h3>JavaScript API</h3>
 			<div id="ts2" style="width: 800px; height: 300px;">
+				<div class="background" style="background-color: black; width: 100%; height: 100%;"></div>
 				<img src="imgs/niagara-large.jpg" style="width: 4320px; height: 2432px;"/>
 			</div>
 			<div><button id="leftBtn">Left</button><button id="upBtn">Up</button><button id="downBtn">Down</button><button id="rightBtn">Right</button></div>
 			<div><button id="topLeftBtn">Top-Left</button><button id="centerBtn">Center</button><button id="bottomRightBtn">Bottom-Right</button></div>
-			<div><button id="swapImgBtn">Swap Image</button> <span id="clicked" style="color: #fff">Clicked</span></div>
+			<div><button id="swapImgBtn">Swap Image</button><button id="fullscreenBtn">Fullscreen</button><span id="clicked" style="color: #fff">Clicked</span></div>
 
 		</div>		
 	</body>
