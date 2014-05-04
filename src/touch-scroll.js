@@ -317,6 +317,110 @@ define('niagara-ui', function(require) {
 			document[name]();
 	}
 
+	function createCustomButton(content, basicStyling, onStateChange) {
+		var button = EE('button', basicStyling, content);
+		var isOver = false, isPressed = false, isFocussed = false, currentState;
+		button.onOver(function(o) {
+			isOver = o;
+			if (!isPressed)
+				onStateChange(currentState = o ? 'over' : 'plain', isFocussed);
+		});
+        button.onPressUI(function(p) {
+            if (p)
+                onStateChange(currentState = 'pressed', isFocussed)
+            else
+                onStateChange(currentState = isOver ? 'over' : 'plain', isFocussed);
+        });
+        button.onFocus(function(focus) {
+            onStateChange(currentState, isFocussed = focus)
+        });
+            
+        return button;
+    }
+
+
+    function createStyledButton(content, basicStyling, states, focusStyles, effectDuration) {
+        states = states || {};
+        basicStyling = basicStyling || {$border: 0, $outline: 'none'};
+
+        var button, animator, focusToggle, lastContentChange = 'plain';
+        if (!content.plain) {
+            content = {plain: content};
+        }
+        if (effectDuration == null)
+            effectDuration = 400;
+        if (!effectDuration.plain)
+            effectDuration = {plain: effectDuration};
+        effectDuration.over = effectDuration.over || effectDuration.plain;
+        effectDuration.pressed = effectDuration.pressed || 0;
+        effectDuration.focus = effectDuration.focus || 0;
+        
+        function stateChange(s, focus) {
+            animator(s, effectDuration[s]);
+            focusToggle(focus);
+            if (content[s] != null && lastContentChange != s)
+                button.fill(content[lastContentChange = s]);
+        }
+        button = createCustomButton(content.plain, basicStyling, stateChange).set(states.plain);
+        animator = button.multiAnimUI(states, 400);
+        focusToggle = focusStyles ? button.toggle(focusStyles[0], focusStyles[1], effectDuration.focus) : function(){};
+        return button;
+    }
+
+
+
+	function multiAnimUI(stateDescs, defaultDurationMs, defaultLinearity) {
+		var self = this;
+		var promise;
+		var state, prevState;
+
+		return function(newState, durationMs, linearity) {
+			if (newState === state || !stateDescs[newState])
+				return;
+			var d = durationMs != null ? durationMs : defaultDurationMs;
+			if (promise) {
+				var d0 = promise.stop();
+				if (prevState === newState)
+					d = d0;
+			}
+			if (d) {
+				promise = self.animate(stateDescs[newState], d, linearity || defaultLinearity);
+				promise.then(function(){
+					promise = null;
+				});
+			}
+			else {
+				self.set(stateDescs[newState]);
+				promise = null;
+			}
+
+			prevState = state;
+			state = newState;
+		};
+	};
+
+	// TODO: touch events needed?
+	function onPressUI(subSelector, handler, unpressArg, pressArg) {
+		if (handler) {
+			var downStates = [];
+			return this.per(function(el, index) {
+				downStates[index] = false;
+				el.onOver(function(over) {
+					if (downStates[index] && !over)
+						handler.call(el, downStates[index] = false);
+				});
+			}).on('|mousedown |mouseup', function(e, index) {
+				var down = (e.type == 'mousedown');
+				if (downStates[index] != down)
+					handler.call(this, downStates[index] = down);
+			});
+		}
+		else
+			return this.onPressUI(null, subSelector);
+	};
+
+	NIAGARA.M.prototype.multiAnimUI = multiAnimUI;
+	NIAGARA.M.prototype.onPressUI = onPressUI;
 
 	return {
 		getDataOptions: getDataOptions,
@@ -355,6 +459,7 @@ define('touchScroll' , function(require) {
 	var setFullscreen = niaUI.setFullscreen;
 	var exitFullscreen = niaUI.exitFullscreen;
 	var createToggle = niaUI.createToggle;
+	var SEE = niaUI.SEE;
 
 
 	// parent: a <div> or similar element. Should have fixed size. touchScroll will set relative positioning if it is not already positioned and $overflow=hidden.
@@ -368,6 +473,8 @@ define('touchScroll' , function(require) {
 	//   showInstructions: true,        // if true, show a touch animation to explain how to use this. default: true
 	//   instructionParams: {src: '/img/touch-anim.svg', width: 110, height: 100},  // use your own image or animation here.  width/height as number in px
 	//   showFullscreenButton: true,    // if true, shows a fullscreen button in the lower right corner
+	//   fullscreenButtonOn: null,      // if set, either the URL of a fullscreen button image to show while NOT in fullscreen, or the button to add. Default is the built-in button.
+	//   fullscreenButtonOff: null,     // if set, either the URL of a fullscreen button image to show while in fullscreen, or the button to add. Default is the built-in button.
 	// } 
 	// 
 	// Returns: {
@@ -409,6 +516,7 @@ define('touchScroll' , function(require) {
 
 		var instructions; // element list to remove or null
 		var preFullscreenSize; // stores width/height during fullscreen
+		var fullscreenButton; // current fullscreen button or null
 
 		var touchStartED = createEventDispatcher(parent);
 		var touchMoveED = createEventDispatcher(parent);
@@ -428,6 +536,7 @@ define('touchScroll' , function(require) {
 		var axisY = axis != 'x' && (scrollAlways || ph<h);
 		var showInstructions = getBool(opts.showInstructions, true);
 		var instructionParams = opts.instructionParams || {src: '/img/touch-anim.svg', width: 110, height: 100};
+		var showFullscreenButton = getBool(opts.showFullscreenButton, true);
 
 		if (_.isString(initialPosition))
 			initialPosition = {x: parseFloat(initialPosition.replace(/,.*/, '')), y: parseFloat(initialPosition.replace(/.*,/, ''))};
@@ -444,13 +553,6 @@ define('touchScroll' , function(require) {
 					 $top: -Math.round(initialPosition.y)+'px'});
 		if (!/relative|absolute|fixed|sticky/.test(parent.get('$position')))
 			parent.set({$position: 'relative'});
-
-		if (showInstructions && (isSvgPossible() || !/\.svg$/.test(instructionParams.src))) {
-			parent.add(instructions = EE('img', {src: instructionParams.src, $position: 'absolute', 
-				$width: toPx(instructionParams.width), $height: toPx(instructionParams.height),
-				$left: toPx(Math.round((pw - instructionParams.width)/2)),
-				$top: toPx(Math.round((ph - instructionParams.height)/2))}));
-		}
 
 		var sx = content.get('offsetLeft', true); // position of the image
 		var sy = content.get('offsetTop', true);  
@@ -629,7 +731,7 @@ define('touchScroll' , function(require) {
 					if (animY)
 						animEndT = Math.max(animEndT, tm + bumpAnimDuration);
 				}
-				
+
 				if (t >= animEndT) {
 					if (canAnimateX)
 						sx = Math.max(pw-w, Math.min(0, sx));
@@ -643,6 +745,43 @@ define('touchScroll' , function(require) {
 			});
 			touchEndED();
 		});
+
+
+		if (showFullscreenButton) {
+			var button;
+			var svgOn = SEE('svg', {'@width': 32, '@height': 32, '@viewBox': '0 0 180 180'},
+				SEE('g', [
+					SEE('rect', {'@x': 0, '@y': 0, '@width': 180, '@height': 15, '@fill': '#fff'}),
+					SEE('rect', {'@x': 0, '@y': 165, '@width': 180, '@height': 15, '@fill': '#fff'}),
+					SEE('rect', {'@x': 0, '@y': 15, '@width': 15, '@height': 150, '@fill': '#fff'}),
+					SEE('rect', {'@x': 165, '@y': 15, '@width': 15, '@height': 150, '@fill': '#fff'}),
+					SEE('rect', {'@class': 'svgFsButtonBg', '@x': 15, '@y': 15, '@width': 150, '@height': 150, '@fill': '#000', '@opacity': '0.5'}),
+					SEE('path', {'@stroke': '#000', '@stroke-width': 10, '@fill': '#fff',
+						'@d': 'M10,10 l60,0 l-20,20 l100,100 l20,-20 l0,60 l-60,0 l20,-20 l-100,-100 l-20,20 z'})
+				])); 
+			var svgOff = svgOn.clone();
+			svgOff.select('path').set({'@d': 'M20,25l10,-10l35,35l20,-20l0,60l-60,0l20,-20l-35,-35z'});
+			svgOff.select('g').add(svgOff.select('path').clone().set({'@d': 'M155,155l-10,10l-35,-35l-20,20l0,-60l60,0l-20,20l35,35z'}));
+
+			function positionButton(onOff) {
+				if (button)
+					button.remove();
+				var dist = Math.round(Math.min(pw, ph)*0.05);
+				parent.add(button = EE('button', {$position: 'absolute', $backgroundColor: 'transparent', $border: 0, $right: dist+'px', $bottom: dist+'px'}, onOff ? svgOff : svgOn));
+				button.onClick(toggleFullscreen)
+					  .onOver(button.select('.svgFsButtonBg').toggle({'@fill': '#000'}, {'@fill': '#999'}, 150, 1));
+			}
+			positionButton(false);
+			fullscreenED.on(positionButton);
+		}
+
+		if (showInstructions && (isSvgPossible() || !/\.svg$/.test(instructionParams.src))) {
+			parent.add(instructions = EE('img', {src: instructionParams.src, $position: 'absolute', 
+				$width: toPx(instructionParams.width), $height: toPx(instructionParams.height),
+				$left: toPx(Math.round((pw - instructionParams.width)/2)),
+				$top: toPx(Math.round((ph - instructionParams.height)/2))}));
+		}
+
 
 		return {
 			onTouchStart:  touchStartED.on,  offTouchStart:  touchStartED.off,
