@@ -456,6 +456,7 @@ define('touchScroll' , function(require) {
 	var touchMover = niaUI.touchMover;
 	var isSvgPossible = niaUI.isSvgPossible;
 	var toPx = niaUI.toPx;
+	var isFullscreenPossible = niaUI.isFullscreenPossible;
 	var setFullscreen = niaUI.setFullscreen;
 	var exitFullscreen = niaUI.exitFullscreen;
 	var createToggle = niaUI.createToggle;
@@ -472,9 +473,10 @@ define('touchScroll' , function(require) {
 	//   scrollAlways: false,           // if set true, touch scrolling is supported even when content fits
 	//   showInstructions: true,        // if true, show a touch animation to explain how to use this. default: true
 	//   instructionParams: {src: '/img/touch-anim.svg', width: 110, height: 100},  // use your own image or animation here.  width/height as number in px
-	//   showFullscreenButton: true,    // if true, shows a fullscreen button in the lower right corner
-	//   fullscreenButtonOn: null,      // if set, either the URL of a fullscreen button image to show while NOT in fullscreen, or the button to add. Default is the built-in button.
-	//   fullscreenButtonOff: null,     // if set, either the URL of a fullscreen button image to show while in fullscreen, or the button to add. Default is the built-in button.
+	//   showFullscreenButton: true,    // if true, shows a fullscreen button in the lower right corner. Default: true if browser supports fullscreen.
+	//   fullscreenButtonOn: null,      // if set, either the URL of a fullscreen button image to show while NOT in fullscreen, or a button to clone. 
+	//                                     Optionally the URL is followed by width and height, comma-separated. Default is the built-in button.
+	//   fullscreenButtonOff: null,     // if set, either the URL of a fullscreen button image to show while in fullscreen, or a button to clone. Default is the built-in button.
 	// } 
 	// 
 	// Returns: {
@@ -536,7 +538,9 @@ define('touchScroll' , function(require) {
 		var axisY = axis != 'x' && (scrollAlways || ph<h);
 		var showInstructions = getBool(opts.showInstructions, true);
 		var instructionParams = opts.instructionParams || {src: '/img/touch-anim.svg', width: 110, height: 100};
-		var showFullscreenButton = getBool(opts.showFullscreenButton, true);
+		var showFullscreenButton = getBool(opts.showFullscreenButton, isFullscreenPossible());
+		var fullscreenButtonOn = opts.fullscreenButtonOn;
+		var fullscreenButtonOff = opts.fullscreenButtonOff;
 
 		if (_.isString(initialPosition))
 			initialPosition = {x: parseFloat(initialPosition.replace(/,.*/, '')), y: parseFloat(initialPosition.replace(/.*,/, ''))};
@@ -546,6 +550,21 @@ define('touchScroll' , function(require) {
 				showInstructions = false;
 			instructionParams = {src: ia[0], width: parseFloat(ia[1]), height: parseFloat(ia[2])};
 		}
+
+		function createFsButton(str) {
+			var fsb = str.split(/\s*,\s*/);
+			return EE('button', {$backgroundColor: 'transparent', $border: 0}, 
+				EE('img', {'@src': fsb[0], '@width': fsb[1], '@height': fsb[2]}));
+		}
+		if (_.isString(fullscreenButtonOn)) 
+			fullscreenButtonOn = createFsButton(fullscreenButtonOn);
+		else if (fullscreenButtonOn)
+			fullscreenButtonOn = $(fullscreenButtonOn);
+		if (_.isString(fullscreenButtonOff)) 
+			fullscreenButtonOff = createFsButton(fullscreenButtonOff);
+		else if (fullscreenButtonOff)
+			fullscreenButtonOff = $(fullscreenButtonOff);
+		
 
 		parent.set({$overflow: 'hidden'});
 		content.set({$position: 'absolute', 
@@ -749,27 +768,40 @@ define('touchScroll' , function(require) {
 
 		if (showFullscreenButton) {
 			var button;
-			var svgOn = SEE('svg', {'@width': 32, '@height': 32, '@viewBox': '0 0 180 180'},
-				SEE('g', [
-					SEE('rect', {'@x': 0, '@y': 0, '@width': 180, '@height': 15, '@fill': '#fff'}),
-					SEE('rect', {'@x': 0, '@y': 165, '@width': 180, '@height': 15, '@fill': '#fff'}),
-					SEE('rect', {'@x': 0, '@y': 15, '@width': 15, '@height': 150, '@fill': '#fff'}),
-					SEE('rect', {'@x': 165, '@y': 15, '@width': 15, '@height': 150, '@fill': '#fff'}),
-					SEE('rect', {'@class': 'svgFsButtonBg', '@x': 15, '@y': 15, '@width': 150, '@height': 150, '@fill': '#000', '@opacity': '0.5'}),
-					SEE('path', {'@stroke': '#000', '@stroke-width': 10, '@fill': '#fff',
-						'@d': 'M10,10 l60,0 l-20,20 l100,100 l20,-20 l0,60 l-60,0 l20,-20 l-100,-100 l-20,20 z'})
-				])); 
-			var svgOff = svgOn.clone();
-			svgOff.select('path').set({'@d': 'M20,25l10,-10l35,35l20,-20l0,60l-60,0l20,-20l-35,-35z'});
-			svgOff.select('g').add(svgOff.select('path').clone().set({'@d': 'M155,155l-10,10l-35,-35l-20,20l0,-60l60,0l-20,20l35,35z'}));
+			if (!fullscreenButtonOn || !fullscreenButtonOff) {
+				var svgOn = SEE('svg', {'@width': 32, '@height': 32, '@viewBox': '0 0 180 180'},
+					SEE('g', [
+						SEE('rect', {'@x': 0, '@y': 0, '@width': 180, '@height': 15, '@fill': '#fff'}),
+						SEE('rect', {'@x': 0, '@y': 165, '@width': 180, '@height': 15, '@fill': '#fff'}),
+						SEE('rect', {'@x': 0, '@y': 15, '@width': 15, '@height': 150, '@fill': '#fff'}),
+						SEE('rect', {'@x': 165, '@y': 15, '@width': 15, '@height': 150, '@fill': '#fff'}),
+						SEE('rect', {'@class': 'svgFsButtonBg', '@x': 15, '@y': 15, '@width': 150, '@height': 150, '@fill': '#000', '@opacity': '0.5'}),
+						SEE('path', {'@stroke': '#000', '@stroke-width': 10, '@fill': '#fff',
+							'@d': 'M10,10 l60,0 l-20,20 l100,100 l20,-20 l0,60 l-60,0 l20,-20 l-100,-100 l-20,20 z'})
+					])); 
+				var svgOff = svgOn.clone();
+				svgOff.select('path').set({'@d': 'M20,25l10,-10l35,35l20,-20l0,60l-60,0l20,-20l-35,-35z'});
+				svgOff.select('g').add(svgOff.select('path').clone().set({'@d': 'M155,155l-10,10l-35,-35l-20,20l0,-60l60,0l-20,20l35,35z'}));
 
+				var fsButtonStyle = {$backgroundColor: 'transparent', $border: 0};
+				if (!fullscreenButtonOn)
+					fullscreenButtonOn = EE('button', fsButtonStyle, svgOn);
+				if (!fullscreenButtonOff)
+					fullscreenButtonOff = EE('button', fsButtonStyle, svgOff);
+			}
+
+			var buttons = _(fullscreenButtonOff, fullscreenButtonOn);
 			function positionButton(onOff) {
 				if (button)
 					button.remove();
 				var dist = Math.round(Math.min(pw, ph)*0.05);
-				parent.add(button = EE('button', {$position: 'absolute', $backgroundColor: 'transparent', $border: 0, $right: dist+'px', $bottom: dist+'px'}, onOff ? svgOff : svgOn));
-				button.onClick(toggleFullscreen)
-					  .onOver(button.select('.svgFsButtonBg').toggle({'@fill': '#000'}, {'@fill': '#999'}, 150, 1));
+				parent.add(button = buttons.only(+onOff).clone()
+														.set({$position: 'absolute', $right: dist+'px', $bottom: dist+'px'})
+														.onClick(toggleFullscreen)
+														.per(function(b) {
+					if (b.select('.svgFsButtonBg').length)
+						b.onOver(b.select('.svgFsButtonBg').toggle({'@fill': '#000'}, {'@fill': '#999'}, 150, 1));
+				}));
 			}
 			positionButton(false);
 			fullscreenED.on(positionButton);
