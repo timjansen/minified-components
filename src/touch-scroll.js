@@ -476,7 +476,8 @@ define('touchScroll' , function(require) {
 	//   showFullscreenButton: true,    // if true, shows a fullscreen button in the lower right corner. Default: true if browser supports fullscreen.
 	//   fullscreenButtonOn: null,      // if set, either the URL of a fullscreen button image to show while NOT in fullscreen, or a button to clone. 
 	//                                     Optionally the URL is followed by width and height, comma-separated. Default is the built-in button.
-	//   fullscreenButtonOff: null,     // if set, either the URL of a fullscreen button image to show while in fullscreen, or a button to clone. Default is the built-in button.
+	//   fullscreenButtonOff: null,     // if set, either the URL of a fullscreen button image to show while in fullscreen, or a button to clone. Default is the same as 
+	//                                     fullscreenButtonOn button.
 	// } 
 	// 
 	// Returns: {
@@ -564,6 +565,8 @@ define('touchScroll' , function(require) {
 			fullscreenButtonOff = createFsButton(fullscreenButtonOff);
 		else if (fullscreenButtonOff)
 			fullscreenButtonOff = $(fullscreenButtonOff);
+		else if (fullscreenButtonOn)
+			fullscreenButtonOff = fullscreenButtonOn;
 		
 
 		parent.set({$overflow: 'hidden'});
