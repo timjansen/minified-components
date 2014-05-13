@@ -24,28 +24,32 @@ define('niagara-animation', function(require) {
     }
 
 
-	// TODO
 	// list.smoothDial({state1:0}, {state2:0}, {velocity1:0}, {velocity2: 0} )
 	// - if no velocity2, velocity1 is used for beginning and end
 	// - if no velocity1, velocity=0 is assumed
 	// - supports multi-property animation (like 'rotate(0 30 30)' to 'rotate(45 100 100)'). Velocity is then an array.
 
 	function extractInterpolatable(s) {
+        if (_.isNumber(s))
+            return s;
 		var nums = [], m;
-		while (m = /(?:-?[0-9]+(?:\.[0-9]+)?)|(?:#\w{3}(?:\w{3})?)|(?:rgb\([^\)]+\))/g.exec(s))
-			nums.push(parseFloat(m[0]));
+        var re = /(-?[0-9]+(?:\.[0-9]+)?)|(?:#\w{3}(?:\w{3})?)|(?:rgb\([^\)]+\))/g;
+		while (m = re.exec(s))
+			nums.push(m[1] ? parseFloat(m[0]) : m[0]);
 		return nums;
 	}
 
 	function setInterpolatables(s, nums) {
+        if (_.isNumber(s))
+            return nums[0];
 		var i = 0;
-		return s.replace(/-?[0-9]+(?:\.[0-9]+)?/, function() {
+		return s.replace(/(?:-?[0-9]+(?:\.[0-9]+)?)|(?:#\w{3}(?:\w{3})?)|(?:rgb\([^\)]+\))/g, function() {
 			return nums[i++];
 		});
 	}
 
     function extractSingleNumber(v) {
-        return parseFloat(replace(v, /^[^\d-]+/));
+        return parseFloat(v.replace(/^[^\d-]+/, ''));
     }
 
     function getColorComponent(colorCode, index) {
@@ -65,6 +69,7 @@ define('niagara-animation', function(require) {
         }
         var startValues = getValues(properties1);
         var endValues = getValues(properties2);
+
         function getVelocities(vmap) {
             return _.mapObj(startValues, function(name, startValues) {
                 return startValues.map(function(startValue, index) {
@@ -84,10 +89,10 @@ define('niagara-animation', function(require) {
 
 		return function(t) {
 			_.eachObj(startValues, function(name, valueList) {
-                self.set(name, setInterpolatables(startValues[name], 
+                self.set(name, setInterpolatables(properties1[name], 
                     valueList.map(function(start, valIndex) {
                     var i = 0;
-                    var end = endValues[name][valIndex];
+                    var end = endValues[name] ? endValues[name][valIndex] : 0;
                     var vStart = startVelocities[name][valIndex];
                     var vEnd = endVelocities[name][valIndex];
                     return t<=0?start:t>=1?end: 
