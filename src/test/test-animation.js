@@ -1,9 +1,9 @@
 var niaAnim = require('niagara-animation');
 var smoothInterpolator = niaAnim.smoothInterpolator;
-
+var createInterpolator = niaAnim.createInterpolator;
 
 function assertFloat(a, b, maxDiff) {
-	assert(Math.abs(a-b) < (maxDiff || 0.0001), "compared a="+a+" b="+b+" maxDiff="+maxDiff);
+	assert(Math.abs(a-b) < (maxDiff || 0.0001), "compared given="+a+" expected="+b);
 }
 
 
@@ -172,6 +172,36 @@ describe('Animation module', function() {
 			dial1(0.5);
 			assert.equal(_(obj1).get('@x'), '16');
 			assert.equal(_(obj2).get('@x'), '16');
+		});
+	});
+
+	describe('createInterpolator', function() {
+		it('creates simple non-linear functions', function() {
+			var f1 = createInterpolator([]);
+			assertFloat(f1(0, 100, 0), 0);
+			assertFloat(f1(0, 100, 0.5), 50);
+			assert(f1(0, 100, 0.02) < 0.15); // check that it's not linear
+			assertFloat(f1(0, 100, 1), 100);
+			assertFloat(f1(82, -100, 0.745), smoothInterpolator(82, -100, 0.745));
+		});
+		
+		it('creates simple linear functions', function() {
+			var f1 = createInterpolator([{t: 0, p: 0, v: 1}, {t: 1, p: 1, v: 1}]);
+			assertFloat(f1(0, 100, 0), 0);
+			assertFloat(f1(0, 100, 0.11), 11);
+			assertFloat(f1(0, 100, 1), 100);
+		});
+
+		it('creates simple smooth interpolators functions', function() {
+			var f1 = createInterpolator([{t: 0, p: 0, v: 12}, {t: 1, p: 1, v: -0.2}]);
+			assertFloat(f1(0, 1, 0.745), smoothInterpolator(0, 1, 0.745, 12, -0.2));
+		});
+
+		it('creates four-step interpolators', function() {
+			var f1 = createInterpolator([{t: 0, p: 0, v: 0}, {t: 0.25, p: 0.25, v: 1}, {t: 0.75, p: 0.75, v: 1}, {t: 1, p: 1, v: 0}]);
+			assertFloat(f1(0, 100, 0), 0);
+			assertFloat(f1(0, 10, 0.445), 4.45);
+			assertFloat(f1(0, 10, 0.65), 6.5);
 		});
 	});
 

@@ -134,12 +134,12 @@ define('niagara-animation', function(require) {
 
 	// timeline-based creation of interpolation functions, using smoothInterpolator. 
 	// createInterpolator(listOfKeyFrames)
-	// var listOfKeyFrames= [ {t: time0to1, p: position0to1, v: velocity0To1} ]
+	// var listOfKeyFrames= [ {t: time0to1, p: position0to1, v: velocity0To1} ]  // v is optional
 	//
     function createInterpolator(listOfKeyFrames) {
         var keyFrames = _(listOfKeyFrames).array();
-        if (keyFrames [0].t != 0)
-            keyFrames.shift({t: 0, p: 0, v: 0});
+        if (!keyFrames.length || keyFrames [0].t != 0)
+            keyFrames.unshift({t: 0, p: 0, v: 0});
         if (keyFrames[keyFrames.length-1].t != 1)
             keyFrames.push({t: 1, p: 1, v: 0});
         var fGen =  new Function("start", "d", "t", "subInterpolators",
@@ -154,7 +154,7 @@ define('niagara-animation', function(require) {
             var kf1 = keyFrames[index];
             var d = (kf2.t - kf1.t) || 1;
             return function(t) {
-                return smoothInterpolator(kf1.p, kf2.p, (t - kf1.t) / d, kf1.v, kf2.v);
+                return smoothInterpolator(kf1.p, kf2.p, (t - kf1.t) / d, kf1.v*d, kf2.v*d);
             };
         }).array();
 
@@ -349,7 +349,8 @@ define('niagara-animation', function(require) {
      return {
         timeline: timeline,
         animateDial: animateDial ,
-        smoothInterpolator: smoothInterpolator
+        smoothInterpolator: smoothInterpolator,
+        createInterpolator: createInterpolator
      };
 });
 
