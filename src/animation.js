@@ -10,23 +10,18 @@ define('niagara-animation', function(require) {
 	 * @param target the target value
 	 * @param t the current time 0-1
 	 * @param startVelocity the initial velocity (using the units from start and duration)
-	 * @param targetVelocity the target velocity (using the units from start and duration)
+	 * @param endVelocity the target velocity (using the units from start and duration)
 	 */
-	function smoothInterpolator(startValue, endValue, t, startVelocity, targetVelocity) {
-		var delta = endValue - startValue;
-		if (delta == 0)
-			return startValue;
-
-		var vStart = (startVelocity||0) / delta;
-		var vEnd = (endVelocity||0) / delta;
-		
-		if (t >= 1)
-			return endValue;
-		else if (t <= 0)
-			return startValue;
-		else
-			return startValue + (vStart*t + (-2*vStart*vEnd)*t*t + (2*vStart*vEnd-2)*t*t*t) * delta;
-	}
+    function smoothInterpolator(start, end, t, vStart, vEnd) {
+        vStart = vStart || 0;
+        vEnd = vEnd || 0;
+        if (t >= 1)
+            return end;
+        else if (t < 0)
+            return start;
+        else
+            return start + vStart*t + (3*end-3*start-2*vStart-vEnd)*t*t + (2*start+vStart+vEnd-2*end)*t*t*t;
+    }
 
 
 	// TODO
@@ -348,7 +343,8 @@ define('niagara-animation', function(require) {
    
      return {
         timeline: timeline,
-        animateDial: animateDial 
+        animateDial: animateDial ,
+        smoothInterpolator: smoothInterpolator
      };
 });
 

@@ -1,0 +1,40 @@
+<html>
+	<head><title>SVG Test</title>
+
+	<style type="text/css">
+		body { font: 20px/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif; }
+		#pageContainer { margin: 0.5em; }
+		h1, h2, h3, h4 { font-weight: 200; }
+	</style> 
+	<link rel="stylesheet" href="mocha.css" />
+
+	<script type="text/javascript" src="minified-src.js"></script>
+	<script type="text/javascript" src="animation.js"></script>
+  	<script src="assert.js"></script>
+  	<script src="mocha.js"></script>
+  	<script id="testTemplate" type="minified-template"><circle cx="1" cy="2" r="{{radius}}"/></script> 
+  	<script>
+  		var NIAGARA = require('minified'), $ = NIAGARA.$, $$=NIAGARA.$$, EE = NIAGARA.EE, HTML = NIAGARA.HTML;
+  		var _ = NIAGARA._;
+  	
+  		var isPhantomJS = /PhantomJS/.test(navigator.userAgent);
+  	
+  		mocha.setup('bdd');
+  	</script>
+  	<script src="test-animation.js"></script>
+	</head>
+	<body>
+		<div id="pageContainer">
+			<h2 id="title">Animation Test</h2>
+
+			<div id="mocha"></div>
+		
+		</div>		
+	</body>
+	<script type="text/javascript">
+    	mocha.checkLeaks();
+    	if (!isPhantomJS) 
+			mocha.run();
+	</script>
+</html>
+
