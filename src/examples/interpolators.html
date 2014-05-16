@@ -1,0 +1,107 @@
+<html>
+	<head><title>Animation / Interpolation Test</title>
+
+	<style type="text/css">
+		body { font: 20px/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif; }
+		#pageContainer { margin: 0.5em; }
+	</style> 
+
+	<script type="text/javascript" src="minified-src.js"></script>
+	<script type="text/javascript" src="animation.js"></script>
+  	<script>
+  		var NIAGARA = require('minified'), $ = NIAGARA.$, $$=NIAGARA.$$, EE = NIAGARA.EE, HTML = NIAGARA.HTML;
+  		var _ = NIAGARA._;
+  		var niaAnim = require('niagara-animation');
+
+  		var interpolationFuncs = _('linear', 'inOut', 'in', 'out', 'stop', 
+  		'inSwing', 'outSwing', 'inOutSwing', 'inElastic', 'outElastic', 'inOutElastic', 'bounce',
+  		'circular', 'sineSwingUp', 'sineSwingDown');
+
+  		$(function() {
+  			function slideAnim(f) {
+  				var container = this.up('.interpolation');
+  				var cw = container.get('offsetWidth');
+  				var ch = container.get('offsetHeight');
+  				var block = EE('div', {$position: 'absolute', $left: '-20px', $top: (ch/2-10)+'px',
+  					$width: '20px', $height: '20px', $backgroundColor: 'blue'});
+  				container.add(block);
+  				block.animate({$left: (cw/2-10)+'px'}, 1200, f)
+  				     .then(function(list) {
+  				     	return $.wait(500, [list]);
+  				     })
+  				     .then(function(list) {
+  				     	return list.animate({$$fade: 0});
+  				     })
+  				     .then(function(list) {
+  				     	list.remove();
+  				     });
+  			}
+  			function fadeAnim(f) {
+  				var container = this.up('.interpolation');
+  				var cw = container.get('offsetWidth');
+  				var ch = container.get('offsetHeight');
+  				var block = EE('div', {$position: 'absolute', $left: '0', $top: '0',
+  					$width: cw+'px', $height: ch+'px', $backgroundColor: 'red', $$fade: 0});
+  				container.add(block);
+  				block.animate({$$fade: 1}, 1200, f)
+  				     .then(function(list) {
+  				     	return $.wait(500, [list]);
+  				     })
+  				     .then(function(list) {
+  				     	return list.animate({$$fade: 0});
+  				     })
+  				     .then(function(list) {
+  				     	list.remove();
+  				     });
+  			}
+
+  			interpolationFuncs.each(function(name) {
+  				var f = niaAnim.ease[name];
+  				var canvas, cont;
+  				$('#container').add(cont = EE('div', {$: 'interpolation', $position: 'relative'}, [
+  												EE('div', {$: 'name'}, name),
+  												canvas = EE('canvas', {'@width': 120, '@height': 160}),
+  												EE('div', {$: 'buttonRow'}, [
+  													EE('button', 'Slide').onClick(slideAnim, [f]),
+  													EE('button', 'Fade').onClick(fadeAnim, [f])
+  												])
+  											]));
+  				var ctx = $$(canvas).getContext('2d');
+
+				function line(x0, y0, x1, y1) {
+					ctx.beginPath();
+					ctx.moveTo(x0, y0);
+					ctx.lineTo(x1, y1);
+					ctx.stroke();
+				}
+
+				ctx.strokeStyle = '#000';
+				line(10, 130, 10, 10);
+				line(10, 10, 15, 15);
+				line(10, 10, 5, 15);
+				line(10, 130, 110, 130);
+				line (110, 130, 105, 125);
+				line (110, 130, 105, 135);
+				ctx.strokeStyle = '#aaa';
+				line (11, 30, 130, 30);
+
+				ctx.strokeStyle = '#444';
+				ctx.beginPath();
+				ctx.moveTo(10, 130);
+				for (var i = 1; i <= 100; i++)
+					ctx.lineTo(10+i, f(130, 30, i/100));
+				ctx.stroke();
+  			});
+  		});
+  	</script>
+	</head>
+	<body>
+		<div id="pageContainer">
+			<h2 id="title">Animation / Interpolation Test</h2>
+
+			<div id="container"></div>	
+
+		</div>		
+	</body>
+</html>
+

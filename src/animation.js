@@ -23,7 +23,6 @@ define('niagara-animation', function(require) {
             return start + vStart*t + (3*end-3*start-2*vStart-vEnd)*t*t + (2*start+vStart+vEnd-2*end)*t*t*t;
     }
 
-
 	// list.smoothDial({state1:0}, {state2:0}, {velocity1:0}, {velocity2: 0} )
 	// - if no velocity2, velocity1 is used for beginning and end
 	// - if no velocity1, velocity=0 is assumed
@@ -173,7 +172,7 @@ define('niagara-animation', function(require) {
         sineSwingDown: function(t) {
             return t-0.25*Math.sin(t*2*Math.PI);
         }
-    }, function(f) {
+    }, function(name, f) {
         return function (start, end, t) {
             if (t<=0) return start;
             else if (t >= 1) return end;
@@ -185,19 +184,18 @@ define('niagara-animation', function(require) {
         inOut: [],
         in: [{t: 1, p: 1, v: 1}],
         out: [{t: 0, p: 0, v: 1}],
-        inStopOut: [{t: 0.5, p: 0.5, v: 0}],
         stop: [{t: 0, p: 0, v: 1}, {t: 0.5, p: 0.5, v: 0}, {t: 1, p: 1, v: 1}],
         inSwing: [{t: 0.3, p: -0.1, v: 0}, {t: 1, p: 1, v: 1}],
         outSwing: [{t: 0, p: 0, v: 1}, {t: 0.7, p: 1.1, v: 0}],
-        inOutSwing: [{t: 0.25, p: -0.1, v: 0}, {t: 0.25, p: 1.1, v: 0}],
-        inElastic: [{t: 0.2, p: -0.05, v: 0}, {t: 0.4, p: 0.15, v: 0}, {t: 0.6, p: -0.25, v: 0}, {t: 1, p: 1, v: 3}],
-        outElastic: [{t: 0, p: 0, v: 3}, {t: 0.4, p: 1.25, v: 0}, {t: 0.6, p: 0.85, v: 0}, {t: 0.8, p: 1.05, v: 0}, ],
+        inOutSwing: [{t: 0.25, p: -0.1, v: 0}, {t: 0.75, p: 1.1, v: 0}],
+        inElastic: [{t: 0.1, p: -0.05, v: 0}, {t: 0.3, p: 0.15, v: 0}, {t: 0.5, p: -0.25, v: 0}, {t: 1, p: 1, v: 3}],
+        outElastic: [{t: 0, p: 0, v: 3}, {t: 0.5, p: 1.25, v: 0}, {t: 0.7, p: 0.85, v: 0}, {t: 0.9, p: 1.05, v: 0}, ],
         inOutElastic: [{t: 0.1, p: -0.05, v: 0}, {t: 0.2, p: 0.1, v: 0}, {t: 0.3, p: -0.2, v: 0},  {t: 0.7, p: 1.2, v: 0},  {t: 0.8, p: 0.9, v: 0}, {t: 0.9, p: 1.05, v: 0}],
         bounce: [{t: 00, p: 0, v: 0.25},
             {t: 0.125, p: 0.125, v: 0}, {t: 0.2499999, p: 0, v: -0.25},  {t: 0.25, p: 0, v: 0.5},
             {t: 0.375, p: 0.25, v: 0}, {t: 0.4999999, p: 0, v: -0.5},  {t: 0.5, p: 0, v: 1},
             {t: 0.625, p: 0.5, v: 0}, {t: 0.7499999, p: 0, v: -1},  {t: 0.75, p: 0, v: 5}]
-    }, createInterpolator);
+    }, function(name, def) { return createInterpolator(def); });
 
     var ease = _.extend(constructedEases,  functionEases);
 
