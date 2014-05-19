@@ -236,17 +236,18 @@ describe('Animation module', function() {
 
 		it('calls dials correctly', function() {
 			var a1, a2;
-			var tl1 = timeline([{dial: a1 = createAssertCallback([0, 101, 200, 499, 500]), wait: 500}/*, 
-								{dial: a2 = createAssertCallback([0, 10, 20, 100]), wait: 100}*/]);
+			var tl1 = timeline([{dial: a1 = createAssertCallback([0, 0.2, 0.4, 0.998, 1]), wait: 500}, 
+								{dial: a2 = createAssertCallback([0.1, 0.2, 1]), wait: 100}]);
 			tl1(0); 
-/*			tl1(100); 
+			tl1(100); 
 			tl1(200); 
 			tl1(499); 
 			tl1(510); 
 			tl1(520); 
 			tl1(600); 
+			tl1(600);
 			tl1(700);
-*/			a1.check();
+			a1.check();
 			a2.check();
 		});
 

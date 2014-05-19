@@ -312,7 +312,7 @@ define('niagara-animation', function(require) {
             prevBlockingEnd = r.tBlockingEnd;
             return r;
         });
-console.log('td', td.array());
+
         // create a list of all activations and deactivations that is used to activate/deactivate in the right order
         function createTimeEvent(forward, e) {
             if (forward ? e.tForward : e.tBackward)
@@ -326,8 +326,11 @@ console.log('td', td.array());
         var eventTimeline = td.collect(_.partial(createTimeEvent, [true])).sort(function(a, b) { return a.time - b.time; });
         var reverseTimeline = td.collect(_.partial(createTimeEvent, [false])).sort(function(a, b) { return b.time - a.time; });
        
+console.log('eventTimeline', eventTimeline.array());
+
         var lastT = null;
         return function(t, stop) {
+console.log('func(',t,')');
             if (t == null)   // if no arg/no t -> return duration
                 return endOfTimeline;
             if (t == lastT) // no time change -> nothing to do
@@ -342,19 +345,39 @@ console.log('td', td.array());
             var backward = tSpanLast > tSpanNow;
             lastT = t;
 
-            function isInTimeSpan(t) {
-                return backward ? (t < tSpanLast && t >= tSpanNow) : (t > tSpanLast || t <= tSpanNow);
+            function isInTimeSpan(t0) {
+                return backward ? (t0 < tSpanLast && t0 >= tSpanNow) : (t0 > tSpanLast && t0 <= tSpanNow);
             }
+
 
             (backward ? reverseTimeline : eventTimeline).each(function(event) {
                 var item = event.item;
                 var relT = tSpanNow - item.tStart;
 
+                if (isInTimeSpan(event.time)) {
+                    if (event.active) {
+                        if (item.toggle && !(isInTimeSpan(item.tActualEnd) && isInTimeSpan(item.tStart)))
+                            item.toggle(true);
+                        if (item.callback)
+                            item.callback(tSpanNow);
+                    }
+                    else {
+                            if (item.toggle)
+                                item.toggle(false);
+                            if (item.dial) {
+    console.log(tSpanLast, tSpanNow, t, 'dial in ts called', event);
+                                item.dial(backward ? 0 : (item.tDurationPerRun > 0 && item.tDuration % item.tDurationPerRun == 0) ? 1 :
+                                    (item.tDuration % item.tDurationPerRun / item.tDurationPerRun));
+                            }
+                    }
+                }
+
                 // Regular anim
-                if (t >= item.tStart && t < item.tActualEnd) {
+                if (t >= item.tStart && t < item.tActualEnd && backward == !event.active) {
                     if (item.loop)
                         item.loop(relT);
                     if (item.dial && item.tDurationPerRun > 0) {
+console.log(t, 'dial in anim', event);
                         var x = relT / item.tDurationPerRun;
                         item.dial(item.tBackForth == 1 ? x : (x < 0.5 ? x*2 : 2-(2*x) ));
                     }
@@ -362,20 +385,6 @@ console.log('td', td.array());
                         item.tTimeline(relT);
                 }
 
-                // Activation / Deactivation
-                if (isInTimeSpan(event.time)) {
-                    if (event.active) {
-                        if (item.toggle && !(isInTimeSpan(item.tActualEnd) && isInTimeSpan(item.tStart)))
-                            item.toggle(true);
-                        if (item.callback)
-                            item.callback(tSpanNow);
-                    } else {
-                        if (item.toggle)
-                            item.toggle(false);
-                        if (item.dial)
-                            item.dial(backward ? 0 : (item.tDuration / item.tDurationPerRun % 1));
-                    }
-                }
             });
 
             if (t >= endOfTimeline && stop)
