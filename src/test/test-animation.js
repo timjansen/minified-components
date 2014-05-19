@@ -1,9 +1,26 @@
 var niaAnim = require('niagara-animation');
 var smoothInterpolator = niaAnim.smoothInterpolator;
 var createInterpolator = niaAnim.createInterpolator;
+var timeline = niaAnim.timeline;
 
 function assertFloat(a, b, maxDiff) {
-	assert(Math.abs(a-b) < (maxDiff || 0.0001), "compared given="+a+" expected="+b);
+	assert(Math.abs(a-b) < (maxDiff || 0.0001), "float given="+a+" expected="+b);
+}
+
+function createAssertCallback(expectedArgs) {
+	var i = 0;
+	var f = function(t) {
+		assert(i < expectedArgs.length, 'Called more often than expected');
+		var a = expectedArgs[i++];
+		if (_.isNumber(a))
+			assertFloat(t, a);
+		else
+			assert.equal(t, a);
+	};
+	f.check = function() {
+		assert.equal(i, expectedArgs.length, "Callback has been called only "+i+" times. Expected " + expectedArgs.length + " times.");
+	};
+	return f;
 }
 
 
@@ -203,6 +220,40 @@ describe('Animation module', function() {
 			assertFloat(f1(0, 10, 0.445), 4.45);
 			assertFloat(f1(0, 10, 0.65), 6.5);
 		});
+	});
+
+	describe('timeline', function() {
+		it('returns the duration without any args', function() {
+			var tl1 = timeline([]);
+			assertFloat(tl1(), 0);
+			var tl2 = timeline([{duration: 22}]);
+			assertFloat(tl2(), 22);
+			var tl3 = timeline([{wait: 100}]);
+			assertFloat(tl3(), 100);
+			var tl4 = timeline([{wait: 100}, {duration: 7}, {wait: 400}, {wait: 500}, {duration: 14}, {duration: 2000}]);
+			assertFloat(tl4(), 3000);
+		});
+
+		it('calls dials correctly', function() {
+			var a1, a2;
+			var tl1 = timeline([{dial: a1 = createAssertCallback([0, 101, 200, 499, 500]), wait: 500}/*, 
+								{dial: a2 = createAssertCallback([0, 10, 20, 100]), wait: 100}*/]);
+			tl1(0); 
+/*			tl1(100); 
+			tl1(200); 
+			tl1(499); 
+			tl1(510); 
+			tl1(520); 
+			tl1(600); 
+			tl1(700);
+*/			a1.check();
+			a2.check();
+		});
+
+		// check all types
+		// check stop is called
+		// test repeat
+		// test backAndForth
 	});
 
 });

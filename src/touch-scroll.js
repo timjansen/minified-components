@@ -84,6 +84,7 @@ define('touchScroll' , function(require) {
 		var movementEndED = createEventDispatcher(parent);
 		var clickED = createEventDispatcher(parent);
 		var fullscreenED = createEventDispatcher(parent);
+		var changeED = createEventDispatcher(parent);
 
 		var opts = options || {};
 		var deceleration = getFloat(opts.deceleration, 400) / 1000000;      // deceleration in px/s^2
@@ -147,7 +148,8 @@ define('touchScroll' , function(require) {
         
 		function setPos() {
         	content.set({$left: Math.round(sx)+'px', $top: Math.round(sy)+'px'});
-        }
+        	fireModelChange();
+	    }
 
         // works with real (negative) coordinates, not user coordinates
         function moveToInternal(x, y, clip, smoothT) {
@@ -201,8 +203,13 @@ define('touchScroll' , function(require) {
 			moveToInternal(x, y, true, smoothT);
 		}
 
-		function position() {
+		function getModel() {
 			return {x: w+sx, y: h+sy, vx: vx*1000, vy: vy*1000, w: w, h: h, viewW: pw, viewH: ph};
+		}
+
+		function fireModelChange() {
+			if (changeED.hasHandlers())
+				changeED(getModel());
 		}
 
 		function changeContent(newContent, initialX, initialY) {
@@ -381,8 +388,9 @@ define('touchScroll' , function(require) {
 			onMovementStart: movementStartED.on, offMovementStart: movementStartED.off,
 			onMovementEnd: movementEndED.on, offMovementEnd: movementEndED.off,
 			onClick: clickED.on, offClick: clickED.off,
+			onChange: changeED.on, offChange: changeED.off, 
 			onFullscreen: fullscreenED.on, offFullscreen: fullscreenED.off,
-			move: move, moveTo: moveTo, position: position, changeContent: changeContent,
+			move: move, moveTo: moveTo, getModel: getModel, changeContent: changeContent,
 			changeViewSize: changeViewSize, toggleFullscreen: toggleFullscreen
 		};
 	}

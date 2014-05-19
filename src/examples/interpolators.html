@@ -4,6 +4,20 @@
 	<style type="text/css">
 		body { font: 20px/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif; }
 		#pageContainer { margin: 0.5em; }
+		.interpolation { 
+			width: 150px;
+			border: 1px solid #ddd;
+			margin: 15px;
+			padding: 10px;
+			overflow: hidden;
+			float: left;
+		}
+		.interpolation > div, .canvas {
+			margin: auto;
+		}
+		.canvas {
+			width: 120px;
+		}
 	</style> 
 
 	<script type="text/javascript" src="minified-src.js"></script>
@@ -14,9 +28,9 @@
   		var niaAnim = require('niagara-animation');
 
   		var interpolationFuncs = _('linear', 'inOut', 'in', 'out', 'softInSoftOut', 'softInOut', 'inSoftOut', 
-  		'softIn', 'softOut', 'stop', 
+  		'softIn', 'softOut', 'stop',
   		'inSwing', 'outSwing', 'inOutSwing', 'inElastic', 'outElastic', 'inOutElastic', 'bounce',
-  		'circular', 'sineSwingUp', 'sineSwingDown');
+  		'sineIn', 'sineOut', 'sineInOut', 'sineSwingUp', 'sineSwingDown');
 
   		$(function() {
   			function slideAnim(f) {
@@ -26,12 +40,12 @@
   				var block = EE('div', {$position: 'absolute', $left: '-20px', $top: (ch/2-10)+'px',
   					$width: '20px', $height: '20px', $backgroundColor: 'blue'});
   				container.add(block);
-  				block.animate({$left: (cw/2-10)+'px'}, 1200, f)
+  				block.animate({$left: (cw/2-10)+'px'}, 1000, f)
   				     .then(function(list) {
   				     	return $.wait(500, [list]);
   				     })
   				     .then(function(list) {
-  				     	return list.animate({$$fade: 0});
+  				     	return list.animate({$left: cw+'px'}, 1000, f);
   				     })
   				     .then(function(list) {
   				     	list.remove();
@@ -44,12 +58,12 @@
   				var block = EE('div', {$position: 'absolute', $left: '0', $top: '0',
   					$width: cw+'px', $height: ch+'px', $backgroundColor: 'red', $$fade: 0});
   				container.add(block);
-  				block.animate({$$fade: 1}, 1200, f)
+  				block.animate({$$fade: 1}, 1000, f)
   				     .then(function(list) {
   				     	return $.wait(500, [list]);
   				     })
   				     .then(function(list) {
-  				     	return list.animate({$$fade: 0});
+  				     	return list.animate({$$fade: 0}, 1000, f);
   				     })
   				     .then(function(list) {
   				     	list.remove();
@@ -59,14 +73,16 @@
   			interpolationFuncs.each(function(name) {
   				var f = niaAnim.ease[name];
   				var canvas, cont;
-  				$('#container').add(cont = EE('div', {$: 'interpolation', $position: 'relative'}, [
-  												EE('div', {$: 'name'}, name),
-  												canvas = EE('canvas', {'@width': 120, '@height': 160}),
-  												EE('div', {$: 'buttonRow'}, [
-  													EE('button', 'Slide').onClick(slideAnim, [f]),
-  													EE('button', 'Fade').onClick(fadeAnim, [f])
+  				$('#container').add(cont = EE('div', {$: 'interpolation', $position: 'relative'}, 
+	  												EE('div', [
+	  												EE('div', {$: 'name'}, name),
+	  												EE('div', {$: 'canvas'}, canvas = EE('canvas', {'@width': 120, '@height': 160})),
+	  												EE('div', {$: 'buttonRow'}, [
+	  													EE('button', 'Slide').onClick(slideAnim, [f]),
+	  													EE('button', 'Fade').onClick(fadeAnim, [f])
+	  												])
   												])
-  											]));
+	  										));
   				var ctx = $$(canvas).getContext('2d');
 
 				function line(x0, y0, x1, y1) {

@@ -64,7 +64,7 @@ define('niagara-animation', function(require) {
         function getValues(properties) {
             return _.mapObj(properties, function(name, start) {
                 return _(extractInterpolatable(start));
-            });   
+            }); 
         }
         var startValues = getValues(properties1);
         var endValues = getValues(properties2);
@@ -163,8 +163,14 @@ define('niagara-animation', function(require) {
     }
 
     var functionEases = _.mapObj({
-        circular: function(t) {
+        sineOut: function(t) {
             return Math.sin(t*Math.PI/2);
+        },
+        sineIn: function(t) {
+            return 1-Math.sin((1-t)*Math.PI/2);
+        },
+        sineInOut: function(t) {
+            return (1+Math.sin((t+1.5)*Math.PI))/2;
         },
         sineSwingUp: function(t) {
             return t+0.25*Math.sin(t*2*Math.PI);
@@ -197,9 +203,9 @@ define('niagara-animation', function(require) {
         outElastic: [{t: 0, p: 0, v: 3}, {t: 0.5, p: 1.25, v: 0}, {t: 0.7, p: 0.85, v: 0}, {t: 0.9, p: 1.05, v: 0}, ],
         inOutElastic: [{t: 0.1, p: -0.05, v: 0}, {t: 0.2, p: 0.1, v: 0}, {t: 0.3, p: -0.2, v: 0},  {t: 0.7, p: 1.2, v: 0},  {t: 0.8, p: 0.9, v: 0}, {t: 0.9, p: 1.05, v: 0}],
         bounce: [{t: 00, p: 0, v: 0.25},
-            {t: 0.125, p: 0.125, v: 0}, {t: 0.2499999, p: 0, v: -0.25},  {t: 0.25, p: 0, v: 0.5},
-            {t: 0.375, p: 0.25, v: 0}, {t: 0.4999999, p: 0, v: -0.5},  {t: 0.5, p: 0, v: 1},
-            {t: 0.625, p: 0.5, v: 0}, {t: 0.7499999, p: 0, v: -1},  {t: 0.75, p: 0, v: 5}]
+            {t: 0.125, p: 0.125, v: 0}, {t: 0.249999999, p: 0, v: -0.25},  {t: 0.25, p: 0, v: 0.5},
+            {t: 0.375, p: 0.25, v: 0},  {t: 0.499999999, p: 0, v: -0.5},  {t: 0.5, p: 0, v: 1},
+            {t: 0.625, p: 0.5, v: 0},   {t: 0.749999999, p: 0, v: -1},  {t: 0.75, p: 0, v: 5}]
     }, function(name, def) { return createInterpolator(def); });
 
     var ease = _.extend(constructedEases,  functionEases);
@@ -259,124 +265,122 @@ define('niagara-animation', function(require) {
      // The timeline can be plugged right into $.loop(), or be used on its own.
      // Call the timeline function without arguments to make it return its duration.
      function timeline(timelineDescriptor) {
-          function processItem(tStart, e) {
-               if (_.isList(e)) {
-                    var ll = _.map(e, function(li) { return processItem(tStart, li); });
-                    return [
-                         ll.reduce(function(memo, r) { return Math.max(r[0], memo); }, tStart),
-                         ll.reduce(function(memo, r) { return Math.max(r[1], memo); }, tStart),
-                         ll.map(function(r) { return r[2]; })
-                    ];
-               }
-               else if (_.isFunction(e))
-                    return processItem(tStart, {callback: e});
-               else {
-                    if (e.timeline)
-                         e.tTimeline = create(e.timeline);
-              var tWait = e.wait || (e.tTimeline && e.tTimeline()) || 0;
-              var tBlockingEnd = tStart+tWait ;
-              var tDurationPerRun = e.duration != null ? e.duration : tWait;
-              var tBackForth = 1+e.backAndForth;
-              var tDuration, tActualEnd;
-              if (e.repeat != 'forever') {
-                   var tRepetitions = e.repeat || (e.repeatMs ? e.repeatMs / tDurationPerRun : 1);
-                   tDuration = tDurationPerRun * tBackForth * tRepetitions;
-                   tActualEnd = tStart+tDuration;
-              }
-              else
-               tActualEnd = tDuration = null;   
-                    return [tBlockingEnd, tActualEnd,
-                              _.extend({}, e, {tStart: tStart,
-                                        tBlockingEnd: tBlockingEnd,
-                                        tActualEnd: tActualEnd, // null if no end
-                                        tWait: tWait,
-                                        tBackForth: tBackForth,
-                                        tDurationPerRun: tDurationPerRun,
-                                        tDuration: tDuration, // null if infinite
-                                        tForward: e.forward == null ? true : e.forward,
-                                        tBackward: e.backward == null ? true : e.backward})];
-               }
-          }
+        function processItem(tStart, e) {
+            if (_.isList(e)) {
+                var ll = _.map(e, function(li) { return processItem(tStart, li); });
+                return [
+                    ll.reduce(function(memo, r) { return Math.max(r.tBlockingEnd, memo); }, tStart),
+                    ll.reduce(function(memo, r) { return Math.max(r.tActualEnd, memo); }, tStart),
+                    ll.map(function(r) { return r; })
+                ];º
+            }
+            else if (_.isFunction(e))
+                return processItem(tStart, {callback: e});
+            else {
+                if (e.timeline)
+                    e.tTimeline = create(e.timeline);
+                var tWait = e.wait || (e.tTimeline && e.tTimeline()) || 0;
+                var tBlockingEnd = tStart+tWait ;
+                var tDurationPerRun = e.duration != null ? e.duration : tWait;
+                var tBackForth = 1+(e.backAndForth||0);
+                var tDuration, tActualEnd;
+                if (e.repeat != 'forever') {
+                    var tRepetitions = e.repeat || (e.repeatMs ? e.repeatMs / tDurationPerRun : 1);
+                    tDuration = tDurationPerRun * tBackForth * tRepetitions;
+                    tActualEnd = tStart+tDuration;
+                }
+                else
+                    tActualEnd = tDuration = null;   
+                return _.extend({}, e, {tStart: tStart,
+                    tBlockingEnd: tBlockingEnd,
+                    tActualEnd: tActualEnd, // null if no end
+                    tWait: tWait,
+                    tBackForth: tBackForth,
+                    tDurationPerRun: tDurationPerRun,
+                    tDuration: tDuration, // null if infinite
+                    tForward: e.forward == null ? true : e.forward,
+                    tBackward: e.backward == null ? true : e.backward});
+            }
+        }
 
-          // make td a flat list of items, with additional t* properties
-          var t = 0;
-          var endOfTimeline = 0;
-          var td = _.collect(function(e) {
-               var r = processItem(t, e);
-               t = r[0];
-               endOfTimeline = Math.max(endOfTimeline, r[0], r[1] || 0);
-               return r[2];
-          });
-
-          // create a list of all activations and deactivations that is used to activate/deactivate in the right order
-          function createTimeEvent(forward, e) {
-               if (forward ? e.tForward : e.tBackward)
-                 return [
-                   {time: e.tStart, active: forward, item: e},
-                   e.tDuration == null ? {time: endOfTimeline, active: !forward, item: e} :
+        // make td a flat list of items, with additional t* properties
+        var endOfTimeline = 0;
+        var prevBlockingEnd = 0;
+        var td = _.collect(timelineDescriptor, function(e) {
+            var r = processItem(prevBlockingEnd, e);
+            endOfTimeline = Math.max(endOfTimeline, r.tBlockingEnd, r.tActualEnd || 0);
+            prevBlockingEnd = r.tBlockingEnd;
+            return r;
+        });
+console.log('td', td.array());
+        // create a list of all activations and deactivations that is used to activate/deactivate in the right order
+        function createTimeEvent(forward, e) {
+            if (forward ? e.tForward : e.tBackward)
+                return [
+                    {time: e.tStart, active: forward, item: e},
+                    e.tDuration == null ? {time: endOfTimeline, active: !forward, item: e} :
                     e.tDuration > 0 ? {time: e.tActualEnd, active: !forward, item: e} : null
-                 ];
-          };
-          var eventTimeline = td.collect(_.partial(true, createTimeEvent))
-                                           .sort(function(a, b) { return a.time - b.time; });
-          var reverseTimeline = td.collect(_.partial(false, createTimeEvent))
-                                           .sort(function(a, b) { return b.time - a.time; });
-   
-          var lastT = null;
-          return function(t, stop) {
-               if (t == null)   // if no arg/no t -> return duration
-                    return endOfTimeline;
-               if (t == lastT) // no time change -> nothing to do
-                    return;
-               if (t >= endOfTimeline && lastT != null && lastT >= endOfTimeline) { // animation already ended
-                    lastT = t;
-                    return;
-               }
+                ];
+        };
 
-               var tSpanLast = lastT || 0;
-               var tSpanNow = Math.min(t, endOfTimeline);
-               var backward = tSpanLast > tSpanNow;
-               lastT = t;
+        var eventTimeline = td.collect(_.partial(createTimeEvent, [true])).sort(function(a, b) { return a.time - b.time; });
+        var reverseTimeline = td.collect(_.partial(createTimeEvent, [false])).sort(function(a, b) { return b.time - a.time; });
+       
+        var lastT = null;
+        return function(t, stop) {
+            if (t == null)   // if no arg/no t -> return duration
+                return endOfTimeline;
+            if (t == lastT) // no time change -> nothing to do
+                return;
+            if (t >= endOfTimeline && lastT != null && lastT >= endOfTimeline) { // animation already ended
+                lastT = t;
+                return;
+            }
 
-               function isInTimeSpan(t) {
-                     return backward ? (t < tSpanLast && t >= tSpanNow) : (t > tSpanLast || t <= tSpanNow);
-               }
-   
-               (backward ? reverseTimeline : eventTimeline).each(function(event) {
-                    var item = event.item;
-                    var relT = tSpanNow - item.tStart;
+            var tSpanLast = lastT || 0;
+            var tSpanNow = Math.min(t, endOfTimeline);
+            var backward = tSpanLast > tSpanNow;
+            lastT = t;
 
-                    // Regular anim
-                    if (t >= item.tStart && t < item.tActualEnd) {
-                         if (item.loop)
-                              item.loop(relT);
-                         if (item.dial && item.tDurationPerRun > 0) {
-                    var x = relT / item.tDurationPerRun;
-                    item.dial(item.tBackForth == 1 ? x : (x < 0.5 ? x*2 : 2-(2*x) ));
-               }
-                         if (item.tTimeline)
-                              item.tTimeline(relT);
+            function isInTimeSpan(t) {
+                return backward ? (t < tSpanLast && t >= tSpanNow) : (t > tSpanLast || t <= tSpanNow);
+            }
+
+            (backward ? reverseTimeline : eventTimeline).each(function(event) {
+                var item = event.item;
+                var relT = tSpanNow - item.tStart;
+
+                // Regular anim
+                if (t >= item.tStart && t < item.tActualEnd) {
+                    if (item.loop)
+                        item.loop(relT);
+                    if (item.dial && item.tDurationPerRun > 0) {
+                        var x = relT / item.tDurationPerRun;
+                        item.dial(item.tBackForth == 1 ? x : (x < 0.5 ? x*2 : 2-(2*x) ));
                     }
+                    if (item.tTimeline)
+                        item.tTimeline(relT);
+                }
 
-                    // Activation / Deactivation
-                    if (isInTimeSpan(event.time)) {
-                         if (event.active) {
-                              if (item.toggle && !(isInTimeSpan(item.tActualEnd) && isInTimeSpan(item.tStart)))
-                                   item.toggle(true);
-                              if (item.callback)
-                                  item.callback(tSpanNow);
-                         } else {
-                              if (item.toggle)
-                                   item.toggle(false);
-                              if (item.dial)
-                                   item.dial(backward ? 0 : (item.tDuration / item.tDurationPerRun % 1));
-                         }
+                // Activation / Deactivation
+                if (isInTimeSpan(event.time)) {
+                    if (event.active) {
+                        if (item.toggle && !(isInTimeSpan(item.tActualEnd) && isInTimeSpan(item.tStart)))
+                            item.toggle(true);
+                        if (item.callback)
+                            item.callback(tSpanNow);
+                    } else {
+                        if (item.toggle)
+                            item.toggle(false);
+                        if (item.dial)
+                            item.dial(backward ? 0 : (item.tDuration / item.tDurationPerRun % 1));
                     }
-               });
-          
-               if (t >= endOfTimeline && stop)
-                    stop();
-          }
+                }
+            });
+
+            if (t >= endOfTimeline && stop)
+                stop();
+            }
      }
 
      NIAGARA.M.prototype.smoothDial = smoothDial;
