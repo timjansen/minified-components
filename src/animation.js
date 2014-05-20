@@ -365,8 +365,6 @@ console.log('func(',t,')');
                             item.callback(tSpanNow);
                     }
                     else {
-if (item.dial)console.log('bw?', backward, backward ? 0 : (item.tDurationPerRun > 0 && item.tDuration % item.tDurationPerRun == 0) ? 1 :
-                                (item.tDuration % item.tDurationPerRun / item.tDurationPerRun));
                         if (item.toggle)
                             item.toggle(false);
                         if (item.dial)
@@ -381,7 +379,6 @@ if (item.dial)console.log('bw?', backward, backward ? 0 : (item.tDurationPerRun 
                         item.loop(relT);
                     if (item.dial) {
                         var x = relT / item.tDurationPerRun;
-console.log(x, item.tBackForth);
                         item.dial(item.tBackForth == 1 ? x : (x < 0.5 ? x*2 : 2-(2*x) ));
                     }
                     if (item.tTimeline)

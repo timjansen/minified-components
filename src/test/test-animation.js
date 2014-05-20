@@ -279,7 +279,30 @@ describe('Animation module', function() {
 			a1.check();
 		});
 
-		// check all types
+
+		it('calls toggle correctly', function() {
+			var a1, a2;
+			var tl1 = timeline([{wait: 100},
+								{toggle: a1 = createAssertCallback([true, false, true, false, false, false]), duration: 100, wait: 50}, 
+								{toggle: a2 = createAssertCallback([false, true, false, false, false]), wait: 50},
+								{wait: 100}]);
+			tl1(0); 
+			tl1(50); 
+			tl1(111); 
+			tl1(144); 
+			tl1(201); 
+			tl1(202);
+			tl1(199);
+			tl1(0); 
+			tl1(999); 
+			tl1(0); 
+			a1.check();
+			a2.check();
+		});
+
+
+
+		// check all types: callback, loop, timeline
 		// check stop is called
 		// test repeat
 		// test backAndForth
