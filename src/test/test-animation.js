@@ -234,7 +234,7 @@ describe('Animation module', function() {
 			assertFloat(tl4(), 3000);
 		});
 
-		it('calls dials correctly', function() {
+		it('calls dials correctly / forward', function() {
 			var a1, a2;
 			var tl1 = timeline([{dial: a1 = createAssertCallback([0, 0.2, 0.4, 0.998, 1]), wait: 500}, 
 								{dial: a2 = createAssertCallback([0.1, 0.2, 1]), wait: 100}]);
@@ -249,6 +249,34 @@ describe('Animation module', function() {
 			tl1(700);
 			a1.check();
 			a2.check();
+		});
+
+		it('calls dials correctly / backward', function() {
+			var a1, a2;
+			var tl1 = timeline([{wait: 1000},
+								{dial: a1 = createAssertCallback([1, 0.8, 0.2, 0]), wait: 500}, 
+								{dial: a2 = createAssertCallback([1, 0.5, 0]), wait: 100},
+								{wait: 100}]);
+			tl1(1650); 
+			tl1(1550); 
+			tl1(1400); 
+			tl1(1400); 
+			tl1(1100); 
+			tl1(900);
+			tl1(800); 
+			tl1(0); 
+			a1.check();
+			a2.check();
+		});
+
+		it('skips dials correctly / backward', function() {
+			var a1;
+			var tl1 = timeline([{wait: 100},
+								{dial: a1 = createAssertCallback([1, 0]), wait: 500}, 
+								{wait: 100}]);
+			tl1(650); 
+			tl1(50);
+			a1.check();
 		});
 
 		// check all types

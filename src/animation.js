@@ -354,37 +354,39 @@ console.log('func(',t,')');
                 var item = event.item;
                 var relT = tSpanNow - item.tStart;
 
-                if (isInTimeSpan(event.time)) {
+                var itemIsRunnable = item.loop || item.dial || item.tTimeline;
+                var itemIsActive = itemIsRunnable && item.tDuration > 0 && t >= item.tStart && t < item.tActualEnd;
+
+                if (!itemIsActive && isInTimeSpan(event.time)) {
                     if (event.active) {
-                        if (item.toggle && !(isInTimeSpan(item.tActualEnd) && isInTimeSpan(item.tStart)))
+                        if (item.toggle && (backward ? !isInTimeSpan(item.tStart) : !isInTimeSpan(item.tActualEnd)))
                             item.toggle(true);
                         if (item.callback)
                             item.callback(tSpanNow);
                     }
                     else {
-                            if (item.toggle)
-                                item.toggle(false);
-                            if (item.dial) {
-    console.log(tSpanLast, tSpanNow, t, 'dial in ts called', event);
-                                item.dial(backward ? 0 : (item.tDurationPerRun > 0 && item.tDuration % item.tDurationPerRun == 0) ? 1 :
-                                    (item.tDuration % item.tDurationPerRun / item.tDurationPerRun));
-                            }
+if (item.dial)console.log('bw?', backward, backward ? 0 : (item.tDurationPerRun > 0 && item.tDuration % item.tDurationPerRun == 0) ? 1 :
+                                (item.tDuration % item.tDurationPerRun / item.tDurationPerRun));
+                        if (item.toggle)
+                            item.toggle(false);
+                        if (item.dial)
+                            item.dial(backward ? 0 : (item.tDurationPerRun > 0 && item.tDuration % item.tDurationPerRun == 0) ? 1 :
+                                (item.tDuration % item.tDurationPerRun / item.tDurationPerRun));
                     }
                 }
 
                 // Regular anim
-                if (t >= item.tStart && t < item.tActualEnd && backward == !event.active) {
+                if (itemIsActive && backward == !event.active) {
                     if (item.loop)
                         item.loop(relT);
-                    if (item.dial && item.tDurationPerRun > 0) {
-console.log(t, 'dial in anim', event);
+                    if (item.dial) {
                         var x = relT / item.tDurationPerRun;
+console.log(x, item.tBackForth);
                         item.dial(item.tBackForth == 1 ? x : (x < 0.5 ? x*2 : 2-(2*x) ));
                     }
                     if (item.tTimeline)
                         item.tTimeline(relT);
                 }
-
             });
 
             if (t >= endOfTimeline && stop)
