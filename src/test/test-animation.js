@@ -301,6 +301,26 @@ describe('Animation module', function() {
 		});
 
 
+		it('calls loop correctly', function() {
+			var a1, a2;
+			var tl1 = timeline([{wait: 100},
+								{loop: a1 = createAssertCallback([11, 44, 99]), duration: 100, wait: 50}, 
+								{loop: a2 = createAssertCallback([49]), wait: 50},
+								{wait: 100}]);
+			tl1(7); 
+			tl1(50); 
+			tl1(111); 
+			tl1(144); 
+			tl1(201); 
+			tl1(202);
+			tl1(199);
+			tl1(0); 
+			tl1(999); 
+			tl1(0); 
+			a1.check();
+			a2.check();
+		});
+
 
 		// check all types: callback, loop, timeline
 		// check stop is called

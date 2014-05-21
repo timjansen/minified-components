@@ -330,7 +330,6 @@ console.log('eventTimeline', eventTimeline.array());
 
         var lastT = null;
         return function(t, stop) {
-console.log('func(',t,')');
             if (t == null)   // if no arg/no t -> return duration
                 return endOfTimeline;
             if (t == lastT) // no time change -> nothing to do
@@ -344,7 +343,6 @@ console.log('func(',t,')');
             var tSpanNow = Math.min(t, endOfTimeline);
             var backward = tSpanLast > tSpanNow;
             lastT = t;
-
             function isInTimeSpan(t0) {
                 return backward ? (t0 < tSpanLast && t0 >= tSpanNow) : (t0 > tSpanLast && t0 <= tSpanNow);
             }
@@ -354,7 +352,7 @@ console.log('func(',t,')');
                 var item = event.item;
                 var relT = tSpanNow - item.tStart;
 
-                var itemIsRunnable = item.loop || item.dial || item.tTimeline;
+                var itemIsRunnable = item.loop || item.dial || item.tTimeline; 
                 var itemIsActive = itemIsRunnable && item.tDuration > 0 && t >= item.tStart && t < item.tActualEnd;
 
                 if (!itemIsActive && isInTimeSpan(event.time)) {
@@ -372,7 +370,6 @@ console.log('func(',t,')');
                                 (item.tDuration % item.tDurationPerRun / item.tDurationPerRun));
                     }
                 }
-
                 // Regular anim
                 if (itemIsActive && backward == !event.active) {
                     if (item.loop)
