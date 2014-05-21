@@ -278,13 +278,17 @@ define('niagara-animation', function(require) {
                 return processItem(tStart, {callback: e});
             else {
                 if (e.timeline)
-                    e.tTimeline = create(e.timeline);
+                    e.tTimeline = timeline(e.timeline);
                 var tWait = e.wait || (e.tTimeline && e.tTimeline()) || 0;
                 var tBlockingEnd = tStart+tWait ;
                 var tDurationPerRun = e.duration != null ? e.duration : tWait;
                 var tBackForth = 1+(e.backAndForth||0);
                 var tDuration, tActualEnd;
-                if (e.repeat != 'forever') {
+                if (e.callback) {
+                    tDuration = 0;
+                    tActualEnd = tStart;
+                }
+                else if (e.repeat != 'forever') {
                     var tRepetitions = e.repeat || (e.repeatMs ? e.repeatMs / tDurationPerRun : 1);
                     tDuration = tDurationPerRun * tBackForth * tRepetitions;
                     tActualEnd = tStart+tDuration;
@@ -315,12 +319,15 @@ define('niagara-animation', function(require) {
 
         // create a list of all activations and deactivations that is used to activate/deactivate in the right order
         function createTimeEvent(forward, e) {
-            if (forward ? e.tForward : e.tBackward)
-                return [
-                    {time: e.tStart, active: forward, item: e},
-                    e.tDuration == null ? {time: endOfTimeline, active: !forward, item: e} :
-                    e.tDuration > 0 ? {time: e.tActualEnd, active: !forward, item: e} : null
-                ];
+            if (forward ? e.tForward : e.tBackward) {
+                var entry1 = {time: e.tStart, active: forward, item: e};
+                if (e.tDuration == null)
+                    return [{time: e.tStart, active: forward, item: e}, {time: endOfTimeline, active: !forward, item: e}];
+                else if (e.tDuration > 0)
+                    return [{time: e.tStart, active: forward, item: e}, {time: e.tActualEnd, active: !forward, item: e}];
+                else
+                    return {time: e.tStart, active: true, item: e};
+            }
         };
 
         var eventTimeline = td.collect(_.partial(createTimeEvent, [true])).sort(function(a, b) { return a.time - b.time; });

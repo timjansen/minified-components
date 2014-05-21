@@ -322,7 +322,30 @@ describe('Animation module', function() {
 		});
 
 
-		// check all types: callback, loop, timeline
+		it('calls callbacks correctly', function() {
+			var a1, a2, a3, a4;
+			var tl1 = timeline([{callback: a1 = createAssertCallback([0]), wait: 10},
+								{callback: a2 = createAssertCallback([0, 5]), forward: false, wait: 10},     // start=10
+								{callback: a3 = createAssertCallback([21, 40]), backward: false, wait: 10},  // start=20
+								{callback: a4 = createAssertCallback([30, 40, 25]), wait: 10}]);             // start=30 end=40
+			tl1(0); 
+			tl1(11); 
+			tl1(21); 
+			tl1(30); 
+			tl1(0); 
+			tl1(50);
+			tl1(25);
+			tl1(15);
+			tl1(5);
+			a1.check();
+			a2.check();
+			a3.check();
+			a4.check();
+		});
+
+
+
+		// check all types: timeline
 		// check stop is called
 		// test repeat
 		// test backAndForth
