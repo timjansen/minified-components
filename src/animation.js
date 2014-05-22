@@ -267,12 +267,17 @@ define('niagara-animation', function(require) {
      function timeline(timelineDescriptor) {
         function processItem(tStart, e) {
             if (_.isList(e)) {
-                var ll = _.map(e, function(li) { return processItem(tStart, li); });
-                return [
-                    ll.reduce(function(memo, r) { return Math.max(r.tBlockingEnd, memo); }, tStart),
-                    ll.reduce(function(memo, r) { return Math.max(r.tActualEnd, memo); }, tStart),
-                    ll.map(function(r) { return r; })
-                ];
+                if (!e.length)
+                    return null;
+                var blockingEnd = tStart;
+                var ll = _.map(e, function(li) { 
+                    var p = processItem(tStart, li);
+                    blockingEnd = Math.max(blockingEnd, p.tBlockingEnd);
+                    p.tBlockingEnd = tStart;
+                    return p;
+                });
+                ll[ll.length-1].tBlockingEnd = blockingEnd;
+                return ll;
             }
             else if (_.isFunction(e))
                 return processItem(tStart, {callback: e});
@@ -298,12 +303,12 @@ define('niagara-animation', function(require) {
                 return _.extend({}, e, {tStart: tStart,
                     tBlockingEnd: tBlockingEnd,
                     tActualEnd: tActualEnd, // null if no end
-                    tWait: tWait,
                     tBackForth: tBackForth,
                     tDurationPerRun: tDurationPerRun,
                     tDuration: tDuration, // null if infinite
                     tForward: e.forward == null ? true : e.forward,
-                    tBackward: e.backward == null ? true : e.backward});
+                    tBackward: e.backward == null ? true : e.backward,
+                    tContent: e.loop || e.timeline || e.dial || e.toggle || e.callback});
             }
         }
 
@@ -311,10 +316,11 @@ define('niagara-animation', function(require) {
         var endOfTimeline = 0;
         var prevBlockingEnd = 0;
         var td = _.collect(timelineDescriptor, function(e) {
-            var r = processItem(prevBlockingEnd, e);
-            endOfTimeline = Math.max(endOfTimeline, r.tBlockingEnd, r.tActualEnd || 0);
-            prevBlockingEnd = r.tBlockingEnd;
-            return r;
+            return _(processItem(prevBlockingEnd, e)).collect(function(r) {
+                endOfTimeline = Math.max(endOfTimeline, r.tBlockingEnd, r.tActualEnd || 0);
+                prevBlockingEnd = r.tBlockingEnd;
+                return r.tContent ? r : null;
+            });   
         });
 
         // create a list of all activations and deactivations that is used to activate/deactivate in the right order

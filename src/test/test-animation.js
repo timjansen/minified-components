@@ -374,6 +374,20 @@ describe('Animation module', function() {
 			a4.check();
 		});
 
+		it('calls parallel elements', function() {
+			var a1, a2, a3, a4;
+			var tl1 = timeline([{wait: 10},
+								[{dial: a1=createAssertCallback([0, 0.5]), wait: 10}, {dial: a2=createAssertCallback([0, 0.25]), wait: 20}, {dial: a3=createAssertCallback([0, 1/6]), duration: 30}],
+								{dial: a4=createAssertCallback([]), wait: 20}]);
+			tl1(5); 
+			tl1(10); 
+			tl1(15);
+			a1.check();
+			a2.check();
+			a3.check();
+			a4.check();
+		});
+
 		// check all types: array (parallel execution)
 		// check stop is called by timeline
 		// test repeat
