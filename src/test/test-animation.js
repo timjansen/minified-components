@@ -388,8 +388,24 @@ describe('Animation module', function() {
 			a4.check();
 		});
 
-		// check all types: array (parallel execution)
-		// check stop is called by timeline
+		it('calls stop when done', function() {
+			var a1, stop;
+			var tl1 = timeline([{dial: a1=createAssertCallback([0.5, 1, 0.8, 1]), wait: 10}]);
+			stop = createAssertCallback([null, null]);
+
+			assert.equal(tl1(), 10);
+
+			tl1(5, stop); 
+			tl1(10, stop); 
+			tl1(15, stop);
+			tl1(10, stop);
+			tl1(8, stop);
+			tl1(20, stop);
+			tl1(20, stop);
+			a1.check();
+			stop.check();
+		});
+
 		// test repeat
 		// test backAndForth
 	});
