@@ -272,13 +272,13 @@ define('niagara-animation', function(require) {
                     ll.reduce(function(memo, r) { return Math.max(r.tBlockingEnd, memo); }, tStart),
                     ll.reduce(function(memo, r) { return Math.max(r.tActualEnd, memo); }, tStart),
                     ll.map(function(r) { return r; })
-                ];º
+                ];
             }
             else if (_.isFunction(e))
                 return processItem(tStart, {callback: e});
             else {
                 if (e.timeline)
-                    e.tTimeline = timeline(e.timeline);
+                    e.tTimeline = _.isFunction(e.timeline) ? e.timeline : timeline(e.timeline);
                 var tWait = e.wait || (e.tTimeline && e.tTimeline()) || 0;
                 var tBlockingEnd = tStart+tWait ;
                 var tDurationPerRun = e.duration != null ? e.duration : tWait;
@@ -375,6 +375,8 @@ console.log('eventTimeline', eventTimeline.array());
                         if (item.dial)
                             item.dial(backward ? 0 : (item.tDurationPerRun > 0 && item.tDuration % item.tDurationPerRun == 0) ? 1 :
                                 (item.tDuration % item.tDurationPerRun / item.tDurationPerRun));
+                        if (item.tTimeline)
+                            item.tTimeline(backward ? 0 : item.tDuration);
                     }
                 }
                 // Regular anim

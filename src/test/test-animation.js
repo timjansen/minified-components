@@ -344,9 +344,38 @@ describe('Animation module', function() {
 		});
 
 
+		it('calls timeline correctly', function() {
+			var a1, a2, a3, a4;
+			var tl1 = timeline([{wait: 10},
+								{timeline: [{loop: a1=createAssertCallback([1, 8, 9, 2, 0]), wait: 10}, {dial: a2=createAssertCallback([0.2, 1, 0.5, 0]), wait: 10}]},
+								{wait: 10},
+								{timeline: timeline([{dial: a3=createAssertCallback([0, 0.2, 0.5, 0]), wait: 10}]), duration: 5},
+								{toggle: a4=createAssertCallback([true, false, false]), wait: 10}]);
+			tl1(5); 
+			tl1(11); 
+			tl1(18);
+			tl1(22);
+			tl1(35);
+			tl1(40);
+			tl1(42);
+			tl1(48);
+			tl1(55);
+			tl1(60);
+			tl1(40);
+			tl1(35);
+			tl1(25);
+			tl1(20);
+			tl1(19);
+			tl1(12);
+			tl1(0);
+			a1.check();
+			a2.check();
+			a3.check();
+			a4.check();
+		});
 
-		// check all types: timeline
-		// check stop is called
+		// check all types: array (parallel execution)
+		// check stop is called by timeline
 		// test repeat
 		// test backAndForth
 	});
