@@ -271,8 +271,7 @@ describe('Animation module', function() {
 								{toggle: a2 = createAssertCallback([false, true, false, false, false]), wait: 50},
 								{wait: 100}]);
 			tl1(0); tl1(50); tl1(111); tl1(144); tl1(201); tl1(202); tl1(199); tl1(0); tl1(999); tl1(0); 
-			a1.check();
-			a2.check();
+			a1.check(); a2.check();
 		});
 
 
@@ -283,8 +282,7 @@ describe('Animation module', function() {
 								{loop: a2 = createAssertCallback([49]), wait: 50},
 								{wait: 100}]);
 			tl1(7); tl1(50); tl1(111); tl1(144); tl1(201); tl1(202); tl1(199); tl1(0); tl1(999); tl1(0); 
-			a1.check();
-			a2.check();
+			a1.check();	a2.check();
 		});
 
 
@@ -295,10 +293,7 @@ describe('Animation module', function() {
 								{callback: a3 = createAssertCallback([21, 40]), backward: false, wait: 10},  // start=20
 								{callback: a4 = createAssertCallback([30, 40, 25]), wait: 10}]);             // start=30 end=40
 			tl1(0); tl1(11); tl1(21); tl1(30); tl1(0); tl1(50); tl1(25); tl1(15); tl1(5);
-			a1.check();
-			a2.check();
-			a3.check();
-			a4.check();
+			a1.check(); a2.check(); a3.check(); a4.check();
 		});
 
 
@@ -311,10 +306,7 @@ describe('Animation module', function() {
 								{toggle: a4=createAssertCallback([true, false, false]), wait: 10}]);
 			tl1(5); tl1(11); tl1(18); tl1(22); tl1(35); tl1(40); tl1(42); tl1(48); tl1(55); tl1(60); tl1(40);
 			tl1(35); tl1(25); tl1(20); tl1(19); tl1(12); tl1(0);
-			a1.check();
-			a2.check();
-			a3.check();
-			a4.check();
+			a1.check(); a2.check(); a3.check(); a4.check();
 		});
 
 		it('calls parallel elements', function() {
@@ -323,10 +315,7 @@ describe('Animation module', function() {
 								[{dial: a1=createAssertCallback([0, 0.5]), wait: 10}, {dial: a2=createAssertCallback([0, 0.25]), wait: 20}, {dial: a3=createAssertCallback([0, 1/6]), duration: 30}],
 								{dial: a4=createAssertCallback([]), wait: 20}]);
 			tl1(5); tl1(10); tl1(15);
-			a1.check();
-			a2.check();
-			a3.check();
-			a4.check();
+			a1.check(); a2.check(); a3.check(); a4.check();
 		});
 
 		it('calls stop when done', function() {
@@ -353,6 +342,17 @@ describe('Animation module', function() {
 								[{dial: a2=createAssertCallback([0.3, 0.5, 0, 0.5, 0.6, 1, 0.7, 0.2, 0]), repeat: 3, wait: 10},
 								 {dial: a3=createAssertCallback([0.3, 0.5, 0.68, 0.7, 0.2, 0]), repeat: 1.68, wait: 10}]]);
 			assert.equal(tl1(), 45);
+			tl1(5); tl1(10); tl1(18); tl1(20); tl1(35); tl1(40); tl1(41); tl1(50); tl1(22); tl1(17); tl1(0);
+
+			a1.check(); a2.check(); a3.check();
+		});
+
+		it('supports forever repeating dials', function() {
+			var a1, a2;
+			var tl1 = timeline([{dial: a1=createAssertCallback([0.5, 0, 0.8, 0, 0.5, 0, 0.1, 0.7, 0.2, 0.7, 0]), duration: 10, repeat: 'forever', wait: 15}, 
+								{wait: 22},
+								{dial: a2=createAssertCallback([0.3, 0.4, 1, 0]), repeat: 'forever', wait: 10}]);
+			assert.equal(tl1(), 47);
 			tl1(5);
 			tl1(10);
 			tl1(18);
@@ -367,7 +367,6 @@ describe('Animation module', function() {
 
 			a1.check();
 			a2.check();
-			a3.check();
 		});
 
 		it('supports repeating dials using repeatMs', function() {

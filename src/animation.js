@@ -288,21 +288,19 @@ define('niagara-animation', function(require) {
                 var tBlockingEnd = tStart+tWait ;
                 var tDurationPerRun = e.duration != null ? e.duration : tWait;
                 var tBackForth = 1+(e.backAndForth||0);
-                var tDuration, tActualEnd;
+                var tDuration;
                 if (e.callback) {
                     tDuration = 0;
-                    tActualEnd = tStart;
                 }
                 else if (e.repeat != 'forever') {
                     var tRepetitions = e.repeat || (e.repeatMs ? e.repeatMs / tDurationPerRun : 1);
                     tDuration = tDurationPerRun * tBackForth * tRepetitions;
-                    tActualEnd = tStart+tDuration;
                 }
                 else
-                    tActualEnd = tDuration = null;   
-                return _.extend({}, e, {tStart: tStart,
+                    tDuration = null;   
+                return _.extend({}, e, {
+                    tStart: tStart,
                     tBlockingEnd: tBlockingEnd,
-                    tActualEnd: tActualEnd, // null if no end
                     tBackForth: tBackForth,
                     tDurationPerRun: tDurationPerRun,
                     tDuration: tDuration, // null if infinite
@@ -317,7 +315,7 @@ define('niagara-animation', function(require) {
         var prevBlockingEnd = 0;
         var td = _.collect(timelineDescriptor, function(e) {
             return _(processItem(prevBlockingEnd, e)).collect(function(r) {
-                endOfTimeline = Math.max(endOfTimeline, r.tBlockingEnd, r.tActualEnd || 0);
+                endOfTimeline = Math.max(endOfTimeline, r.tBlockingEnd, r.tDuration != null ? r.tStart+r.tDuration : 0);
                 prevBlockingEnd = r.tBlockingEnd;
                 return r.tContent ? r : null;
             });   
@@ -330,7 +328,7 @@ define('niagara-animation', function(require) {
                 if (e.tDuration == null)
                     return [{time: e.tStart, active: forward, item: e}, {time: endOfTimeline, active: !forward, item: e}];
                 else if (e.tDuration > 0)
-                    return [{time: e.tStart, active: forward, item: e}, {time: e.tActualEnd, active: !forward, item: e}];
+                    return [{time: e.tStart, active: forward, item: e}, {time: e.tStart+e.tDuration, active: !forward, item: e}];
                 else
                     return {time: e.tStart, active: true, item: e};
             }
@@ -365,11 +363,13 @@ console.log('eventTimeline', eventTimeline.array(), endOfTimeline);
                 var item = event.item;
                 var relT = tSpanNow - item.tStart;
 
+                var itemDuration = item.tDuration != null ? item.tDuration : endOfTimeline - item.tStart;
+                var itemEnd = item.tDuration != null ? item.tStart+item.tDuration : endOfTimeline;
                 var itemIsRunnable = item.loop || item.dial || item.tTimeline; 
-                var itemIsActive = itemIsRunnable && item.tDuration > 0 && t >= item.tStart && t < item.tActualEnd;
+                var itemIsActive = itemIsRunnable && itemDuration > 0 && t >= item.tStart && t < itemEnd;
                 if (!itemIsActive && isInTimeSpan(event.time)) {
                     if (event.active) {
-                        if (item.toggle && !(backward ? isInTimeSpan(item.tStart) : isInTimeSpan(item.tActualEnd)))
+                        if (item.toggle && !(backward ? isInTimeSpan(item.tStart) : isInTimeSpan(itemEnd)))
                             item.toggle(true);
                         if (item.callback)
                             item.callback(tSpanNow);
@@ -378,10 +378,10 @@ console.log('eventTimeline', eventTimeline.array(), endOfTimeline);
                         if (item.toggle)
                             item.toggle(false);
                         if (item.dial)
-                            item.dial(backward ? 0 : (item.tDurationPerRun > 0 && item.tDuration % item.tDurationPerRun == 0) ? 1 :
-                                (item.tDuration % item.tDurationPerRun / item.tDurationPerRun));
+                            item.dial(backward ? 0 : (item.tDurationPerRun > 0 && itemDuration % item.tDurationPerRun == 0) ? 1 :
+                                (itemDuration % item.tDurationPerRun / item.tDurationPerRun));
                         if (item.tTimeline)
-                            item.tTimeline(backward ? 0 : item.tDuration);
+                            item.tTimeline(backward ? 0 : itemDuration);
                     }
                 }
                 // Regular anim
@@ -389,7 +389,7 @@ console.log('eventTimeline', eventTimeline.array(), endOfTimeline);
                     if (item.loop)
                         item.loop(relT);
                     if (item.dial) {
-                        var x = relT == item.tDuration ? 1 : relT / item.tDurationPerRun % 1;
+                        var x = relT == itemDuration ? 1 : relT / item.tDurationPerRun % 1;
                         if (item.tBackForth > 1)
                             x = x < 0.5 ? x*2 : 2-(2*x);
                         item.dial(x);
