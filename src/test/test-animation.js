@@ -353,17 +353,7 @@ describe('Animation module', function() {
 								{wait: 22},
 								{dial: a2=createAssertCallback([0.3, 0.4, 1, 0]), repeat: 'forever', wait: 10}]);
 			assert.equal(tl1(), 47);
-			tl1(5);
-			tl1(10);
-			tl1(18);
-			tl1(20);
-			tl1(35);
-			tl1(40);
-			tl1(41);
-			tl1(50);
-			tl1(22);
-			tl1(17);
-			tl1(0);
+			tl1(5); tl1(10); tl1(18); tl1(20); tl1(35); tl1(40); tl1(41); tl1(50); tl1(22); tl1(17); tl1(0);
 
 			a1.check();
 			a2.check();
@@ -374,22 +364,40 @@ describe('Animation module', function() {
 			var tl1 = timeline([{dial: a1=createAssertCallback([0.5, 0, 0.8, 0, 0.5, 0.2, 0.7, 0]), duration: 10, repeatMs: 25, wait: 15}, 
 								{dial: a2=createAssertCallback([0.3, 0.5, 1, 0.7, 0.2, 0]), repeatMs: 20, wait: 10}]);
 			assert.equal(tl1(), 35);
-			tl1(5);
-			tl1(10);
-			tl1(18);
-			tl1(20);
-			tl1(35);
-			tl1(40);
-			tl1(22);
-			tl1(17);
-			tl1(0);
-
+			tl1(5); tl1(10); tl1(18); tl1(20); tl1(35); tl1(40); tl1(22); tl1(17); tl1(0);
 			a1.check();
 			a2.check();
 		});
 
-		// test repeat forever
-		// test backAndForth
+		it('supports repeating dials with backAndForth', function() {
+			var a1, a2, a3;
+			var tl1 = timeline([{dial: a1=createAssertCallback([0, 0.2, 0.8, 1, 0.8, 0.2, 0, 0.6, 0]), duration: 5, wait: 10, backAndForth: true, repeat: 2}, 
+								[{dial: a2=createAssertCallback([0, 0.1, 0.9, 0.9, 0.4, 0.4, 1, 0.8, 0]), duration: 10, backAndForth: true, repeat: 3},
+								{dial: a3=createAssertCallback([0, 0.1, 0.9, 0.9, 0.5, 0.8, 0]), duration: 10, backAndForth: true, repeatMs: 15}] 
+								]);
+			assert.equal(tl1(), 40);
+			tl1(0);
+			tl1(1);
+			tl1(4);
+			tl1(5);
+			tl1(6);
+			tl1(9);
+			tl1(10);
+			tl1(11);
+			tl1(19);
+			tl1(21);
+			tl1(26);
+			tl1(34);
+			tl1(40);
+			tl1(22);
+			tl1(7);
+			tl1(0);
+
+			a1.check();
+			a2.check();
+			a3.check();
+		});
+
 	});
 
 });

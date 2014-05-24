@@ -294,7 +294,7 @@ define('niagara-animation', function(require) {
                 }
                 else if (e.repeat != 'forever') {
                     var tRepetitions = e.repeat || (e.repeatMs ? e.repeatMs / tDurationPerRun : 1);
-                    tDuration = tDurationPerRun * tBackForth * tRepetitions;
+                    tDuration = tDurationPerRun * tRepetitions;
                 }
                 else
                     tDuration = null;   
@@ -377,9 +377,17 @@ console.log('eventTimeline', eventTimeline.array(), endOfTimeline);
                     else {
                         if (item.toggle)
                             item.toggle(false);
-                        if (item.dial)
-                            item.dial(backward ? 0 : (item.tDurationPerRun > 0 && itemDuration % item.tDurationPerRun == 0) ? 1 :
-                                (itemDuration % item.tDurationPerRun / item.tDurationPerRun));
+                        if (item.dial) {
+                            if (item.tBackForth <= 1)
+                                item.dial(backward ? 0 : (item.tDurationPerRun > 0 && itemDuration % item.tDurationPerRun == 0) ? 1 :
+                                    (itemDuration % item.tDurationPerRun / item.tDurationPerRun));
+                            else {
+                                var x = backward ? 0 : (item.tDurationPerRun > 0 && itemDuration % (2*item.tDurationPerRun) == 1) ? 1 :
+                                    (itemDuration % (2*item.tDurationPerRun) / item.tDurationPerRun);
+                                item.dial(x < 1 ? x : 2-x);
+                            }
+
+                        }
                         if (item.tTimeline)
                             item.tTimeline(backward ? 0 : itemDuration);
                     }
@@ -389,10 +397,13 @@ console.log('eventTimeline', eventTimeline.array(), endOfTimeline);
                     if (item.loop)
                         item.loop(relT);
                     if (item.dial) {
-                        var x = relT == itemDuration ? 1 : relT / item.tDurationPerRun % 1;
-                        if (item.tBackForth > 1)
-                            x = x < 0.5 ? x*2 : 2-(2*x);
-                        item.dial(x);
+                        if (item.tBackForth <= 1)
+                            item.dial(relT == itemDuration ? 1 : relT / item.tDurationPerRun % 1);
+                        else {
+                            var x = relT == itemDuration ? 1 : relT / item.tDurationPerRun % 2;
+                            item.dial(x < 1 ? x : 2-x);
+                        }
+                        
                     }
                     if (item.tTimeline)
                         item.tTimeline(relT);
