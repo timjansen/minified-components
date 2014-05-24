@@ -238,15 +238,7 @@ describe('Animation module', function() {
 			var a1, a2;
 			var tl1 = timeline([{dial: a1 = createAssertCallback([0, 0.2, 0.4, 0.998, 1]), wait: 500}, 
 								{dial: a2 = createAssertCallback([0.1, 0.2, 1]), wait: 100}]);
-			tl1(0); 
-			tl1(100); 
-			tl1(200); 
-			tl1(499); 
-			tl1(510); 
-			tl1(520); 
-			tl1(600); 
-			tl1(600);
-			tl1(700);
+			tl1(0); tl1(100); tl1(200); tl1(499); tl1(510); tl1(520); tl1(600); tl1(600); tl1(700); 
 			a1.check();
 			a2.check();
 		});
@@ -257,14 +249,7 @@ describe('Animation module', function() {
 								{dial: a1 = createAssertCallback([1, 0.8, 0.2, 0]), wait: 500}, 
 								{dial: a2 = createAssertCallback([1, 0.5, 0]), wait: 100},
 								{wait: 100}]);
-			tl1(1650); 
-			tl1(1550); 
-			tl1(1400); 
-			tl1(1400); 
-			tl1(1100); 
-			tl1(900);
-			tl1(800); 
-			tl1(0); 
+			tl1(1650); tl1(1550); tl1(1400); tl1(1400); tl1(1100); tl1(900); tl1(800); tl1(0); 
 			a1.check();
 			a2.check();
 		});
@@ -274,8 +259,7 @@ describe('Animation module', function() {
 			var tl1 = timeline([{wait: 100},
 								{dial: a1 = createAssertCallback([1, 0]), wait: 500}, 
 								{wait: 100}]);
-			tl1(650); 
-			tl1(50);
+			tl1(650); tl1(50);
 			a1.check();
 		});
 
@@ -286,16 +270,7 @@ describe('Animation module', function() {
 								{toggle: a1 = createAssertCallback([true, false, true, false, false, false]), duration: 100, wait: 50}, 
 								{toggle: a2 = createAssertCallback([false, true, false, false, false]), wait: 50},
 								{wait: 100}]);
-			tl1(0); 
-			tl1(50); 
-			tl1(111); 
-			tl1(144); 
-			tl1(201); 
-			tl1(202);
-			tl1(199);
-			tl1(0); 
-			tl1(999); 
-			tl1(0); 
+			tl1(0); tl1(50); tl1(111); tl1(144); tl1(201); tl1(202); tl1(199); tl1(0); tl1(999); tl1(0); 
 			a1.check();
 			a2.check();
 		});
@@ -307,16 +282,7 @@ describe('Animation module', function() {
 								{loop: a1 = createAssertCallback([11, 44, 99]), duration: 100, wait: 50}, 
 								{loop: a2 = createAssertCallback([49]), wait: 50},
 								{wait: 100}]);
-			tl1(7); 
-			tl1(50); 
-			tl1(111); 
-			tl1(144); 
-			tl1(201); 
-			tl1(202);
-			tl1(199);
-			tl1(0); 
-			tl1(999); 
-			tl1(0); 
+			tl1(7); tl1(50); tl1(111); tl1(144); tl1(201); tl1(202); tl1(199); tl1(0); tl1(999); tl1(0); 
 			a1.check();
 			a2.check();
 		});
@@ -328,15 +294,7 @@ describe('Animation module', function() {
 								{callback: a2 = createAssertCallback([0, 5]), forward: false, wait: 10},     // start=10
 								{callback: a3 = createAssertCallback([21, 40]), backward: false, wait: 10},  // start=20
 								{callback: a4 = createAssertCallback([30, 40, 25]), wait: 10}]);             // start=30 end=40
-			tl1(0); 
-			tl1(11); 
-			tl1(21); 
-			tl1(30); 
-			tl1(0); 
-			tl1(50);
-			tl1(25);
-			tl1(15);
-			tl1(5);
+			tl1(0); tl1(11); tl1(21); tl1(30); tl1(0); tl1(50); tl1(25); tl1(15); tl1(5);
 			a1.check();
 			a2.check();
 			a3.check();
@@ -351,23 +309,8 @@ describe('Animation module', function() {
 								{wait: 10},
 								{timeline: timeline([{dial: a3=createAssertCallback([0, 0.2, 0.5, 0]), wait: 10}]), duration: 5},
 								{toggle: a4=createAssertCallback([true, false, false]), wait: 10}]);
-			tl1(5); 
-			tl1(11); 
-			tl1(18);
-			tl1(22);
-			tl1(35);
-			tl1(40);
-			tl1(42);
-			tl1(48);
-			tl1(55);
-			tl1(60);
-			tl1(40);
-			tl1(35);
-			tl1(25);
-			tl1(20);
-			tl1(19);
-			tl1(12);
-			tl1(0);
+			tl1(5); tl1(11); tl1(18); tl1(22); tl1(35); tl1(40); tl1(42); tl1(48); tl1(55); tl1(60); tl1(40);
+			tl1(35); tl1(25); tl1(20); tl1(19); tl1(12); tl1(0);
 			a1.check();
 			a2.check();
 			a3.check();
@@ -379,9 +322,7 @@ describe('Animation module', function() {
 			var tl1 = timeline([{wait: 10},
 								[{dial: a1=createAssertCallback([0, 0.5]), wait: 10}, {dial: a2=createAssertCallback([0, 0.25]), wait: 20}, {dial: a3=createAssertCallback([0, 1/6]), duration: 30}],
 								{dial: a4=createAssertCallback([]), wait: 20}]);
-			tl1(5); 
-			tl1(10); 
-			tl1(15);
+			tl1(5); tl1(10); tl1(15);
 			a1.check();
 			a2.check();
 			a3.check();
@@ -406,7 +347,28 @@ describe('Animation module', function() {
 			stop.check();
 		});
 
-		// test repeat
+		it('supports repeating dials', function() {
+			var a1, a2;
+			var tl1 = timeline([{dial: a1=createAssertCallback([0.5, 0, 0.8, 1, 0.7, 0]), duration: 10, repeat: 2, wait: 15}, 
+								{dial: a2=createAssertCallback([0.3, 0.5, 0, 0.5, 0.6, 1, 0.7, 0.2, 0]), repeat: 3, wait: 10}]);
+			assert.equal(tl1(), 45);
+			tl1(5);
+			tl1(10);
+			tl1(18);
+			tl1(20);
+			tl1(35);
+			tl1(40);
+			tl1(41);
+			tl1(50);
+			tl1(22);
+			tl1(17);
+			tl1(0);
+
+			a1.check();
+			a2.check();
+		});
+
+		// test repeatMs
 		// test backAndForth
 	});
 

@@ -339,7 +339,7 @@ define('niagara-animation', function(require) {
         var eventTimeline = td.collect(_.partial(createTimeEvent, [true])).sort(function(a, b) { return a.time - b.time; });
         var reverseTimeline = td.collect(_.partial(createTimeEvent, [false])).sort(function(a, b) { return b.time - a.time; });
        
-console.log('eventTimeline', eventTimeline.array());
+console.log('eventTimeline', eventTimeline.array(), endOfTimeline);
 
         var lastT = null;
         return function(t, stop) {
@@ -361,16 +361,15 @@ console.log('eventTimeline', eventTimeline.array());
             }
 
 
-            (backward ? reverseTimeline : eventTimeline).each(function(event) {
+            (backward ? reverseTimeline : eventTimeline).each(function(event, index) {
                 var item = event.item;
                 var relT = tSpanNow - item.tStart;
 
                 var itemIsRunnable = item.loop || item.dial || item.tTimeline; 
                 var itemIsActive = itemIsRunnable && item.tDuration > 0 && t >= item.tStart && t < item.tActualEnd;
-
                 if (!itemIsActive && isInTimeSpan(event.time)) {
                     if (event.active) {
-                        if (item.toggle && (backward ? !isInTimeSpan(item.tStart) : !isInTimeSpan(item.tActualEnd)))
+                        if (item.toggle && !(backward ? isInTimeSpan(item.tStart) : isInTimeSpan(item.tActualEnd)))
                             item.toggle(true);
                         if (item.callback)
                             item.callback(tSpanNow);
@@ -390,8 +389,10 @@ console.log('eventTimeline', eventTimeline.array());
                     if (item.loop)
                         item.loop(relT);
                     if (item.dial) {
-                        var x = relT / item.tDurationPerRun;
-                        item.dial(item.tBackForth == 1 ? x : (x < 0.5 ? x*2 : 2-(2*x) ));
+                        var x = relT == item.tDuration ? 1 : relT / item.tDurationPerRun % 1;
+                        if (item.tBackForth > 1)
+                            x = x < 0.5 ? x*2 : 2-(2*x);
+                        item.dial(x);
                     }
                     if (item.tTimeline)
                         item.tTimeline(relT);
