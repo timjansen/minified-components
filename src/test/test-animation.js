@@ -348,9 +348,10 @@ describe('Animation module', function() {
 		});
 
 		it('supports repeating dials', function() {
-			var a1, a2;
+			var a1, a2, a3;
 			var tl1 = timeline([{dial: a1=createAssertCallback([0.5, 0, 0.8, 1, 0.7, 0]), duration: 10, repeat: 2, wait: 15}, 
-								{dial: a2=createAssertCallback([0.3, 0.5, 0, 0.5, 0.6, 1, 0.7, 0.2, 0]), repeat: 3, wait: 10}]);
+								[{dial: a2=createAssertCallback([0.3, 0.5, 0, 0.5, 0.6, 1, 0.7, 0.2, 0]), repeat: 3, wait: 10},
+								 {dial: a3=createAssertCallback([0.3, 0.5, 0.68, 0.7, 0.2, 0]), repeat: 1.68, wait: 10}]]);
 			assert.equal(tl1(), 45);
 			tl1(5);
 			tl1(10);
@@ -366,9 +367,29 @@ describe('Animation module', function() {
 
 			a1.check();
 			a2.check();
+			a3.check();
 		});
 
-		// test repeatMs
+		it('supports repeating dials using repeatMs', function() {
+			var a1, a2;
+			var tl1 = timeline([{dial: a1=createAssertCallback([0.5, 0, 0.8, 0, 0.5, 0.2, 0.7, 0]), duration: 10, repeatMs: 25, wait: 15}, 
+								{dial: a2=createAssertCallback([0.3, 0.5, 1, 0.7, 0.2, 0]), repeatMs: 20, wait: 10}]);
+			assert.equal(tl1(), 35);
+			tl1(5);
+			tl1(10);
+			tl1(18);
+			tl1(20);
+			tl1(35);
+			tl1(40);
+			tl1(22);
+			tl1(17);
+			tl1(0);
+
+			a1.check();
+			a2.check();
+		});
+
+		// test repeat forever
 		// test backAndForth
 	});
 
