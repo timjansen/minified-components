@@ -2,6 +2,12 @@ define('niagara-animation', function(require) {
   var NIAGARA = require('minified'); 
   var $ = NIAGARA.$, $$ = NIAGARA.$$, EE = NIAGARA.EE, _ = NIAGARA._;
 
+    var ANIM_NODEID = 'NiaAnimID';
+    var idSequence = 1;
+    function getNodeId(el) {
+        return (el[ANIM_NODEID] = (el[ANIM_NODEID] || ++idSequence));
+    }
+
 
 	/*$
 	 * Creates an interpolation function that will smoothly interpolate from the given start value and velocity
@@ -30,7 +36,7 @@ define('niagara-animation', function(require) {
 
 	function extractInterpolatable(s) {
         if (_.isNumber(s))
-            return s;
+            return [s];
 		var nums = [], m;
         var re = /(-?[0-9]+(?:\.[0-9]+)?)|(?:#\w{3}(?:\w{3})?)|(?:rgb\([^\)]+\))/g;
 		while (m = re.exec(s))
@@ -58,12 +64,36 @@ define('niagara-animation', function(require) {
             extractSingleNumber(colorCode.split(',')[index]);
     }
 
+    function interpolatePropValue(t, start, end, vStart, vEnd) {
+        var i = 0;
+        return t<=0?start:t>=1?end: 
+                    (/^#|rgb\(/.test(start)) ? // color in format '#rgb' or '#rrggbb' or 'rgb(r,g,b)'?
+                                ('rgb('+ Math.round(smoothInterpolator(getColorComponent(start, i), getColorComponent(end, i++), t, vStart, vEnd)) 
+                                + ',' + Math.round(smoothInterpolator(getColorComponent(start, i), getColorComponent(end, i++), t, vStart, vEnd))
+                                + ',' + Math.round(smoothInterpolator(getColorComponent(start, i), getColorComponent(end, i++), t, vStart, vEnd))
+                                + ')')
+                            : 
+                                smoothInterpolator(start, end, t, vStart, vEnd);
+    }
+
+    // internal, for use in keyframe timelines
+    function singlePropSmoothDial(propertyName, propertyTemplate, startValues, startVelocity, endValues, endVelocity) {
+        var self = this;
+
+        return function(t) {
+            self.set(propertyName, setInterpolatables(propertyTemplate, 
+                _.map(startValues, function(start, valIndex) {
+                    return interpolatePropValue(t, start, endValues[valIndex], startVelocity[valIndex], endVelocity[valIndex]);
+               })));
+        };
+    }
+
 	function smoothDial(properties1, properties2, velocities1, velocities2) {
 		var self = this;
 
         function getValues(properties) {
             return _.mapObj(properties, function(name, start) {
-                return _(extractInterpolatable(start));
+                return extractInterpolatable(start);
             }); 
         }
         var startValues = getValues(properties1);
@@ -71,7 +101,7 @@ define('niagara-animation', function(require) {
 
         function getVelocities(vmap) {
             return _.mapObj(startValues, function(name, startValues) {
-                return startValues.map(function(startValue, index) {
+                return _.map(startValues, function(startValue, index) {
                     if (vmap && vmap[name] != null) {
                         if (_.isList(vmap[name]))
                             return vmap[name][index] || 0;
@@ -89,19 +119,8 @@ define('niagara-animation', function(require) {
 		return function(t) {
 			_.eachObj(startValues, function(name, valueList) {
                 self.set(name, setInterpolatables(properties1[name], 
-                    valueList.map(function(start, valIndex) {
-                    var i = 0;
-                    var end = endValues[name] ? endValues[name][valIndex] : 0;
-                    var vStart = startVelocities[name][valIndex];
-                    var vEnd = endVelocities[name][valIndex];
-                    return t<=0?start:t>=1?end: 
-                        (/^#|rgb\(/.test(start)) ? // color in format '#rgb' or '#rrggbb' or 'rgb(r,g,b)'?
-                                    ('rgb('+ Math.round(smoothInterpolator(getColorComponent(start, i), getColorComponent(end, i++), t, vStart, vEnd)) 
-    								+ ',' + Math.round(smoothInterpolator(getColorComponent(start, i), getColorComponent(end, i++), t, vStart, vEnd))
-    								+ ',' + Math.round(smoothInterpolator(getColorComponent(start, i), getColorComponent(end, i++), t, vStart, vEnd))
-    							    + ')')
-    							: 
-    								smoothInterpolator(start, end, t, vStart, vEnd);
+                    _.map(valueList, function(start, valIndex) {
+                    return interpolatePropValue(t, start, endValues[name] ? endValues[name][valIndex] : 0, startVelocities[name][valIndex], endVelocities[name][valIndex]);
                 })));
 			});
 		};
@@ -214,15 +233,6 @@ define('niagara-animation', function(require) {
 	// TODO: keyframe anim
 	// two elements:
 	//      To create smooth anim:
-	//           {keyframe: '#elem', props: {'@x': 34}, wait: 50},                 // animates x to 34. Uses auto-smooth. Next step in 50.
-	//           {keyframe: '#elem', props: {'@x': 30}, linear: 1, wait: 10},   // animates x to 30. Linear anim. Next step in 10.
-	//           {keyframe: '#elem', props: {'@x': 50}, velocity: {'@x': 2}, wait: 50}, // animates x to 50. Has given velocity at this keyframe. Next step in 50.
-	//           {keyframe: '#elem', props: {'@x': 10}, velocityBefore: {'@x': -2}, velocityAfter: {'@x': 2}, wait: 50}, // animates x to 10. Velocity chnages from -2 to 2 instantly.
-	//           {keyframe: '#elem', auto: {'@x': null}, wait: 50},  // Uses the initial value for @x as key frame instead of value in props.
-	//           {keyframe: '#elem', auto: ['@x'], wait: 50},         // same using array syntax
-	//
-	//        To end anim:
-	//           {keystop: '#elem', props: {'@x': 100}}   // same as {keyframe: '#elem', props: {'@x': 10}, velocity: {'@x': 0}},
 	//
 	//
 	// '#elem' can be anything allowed by $()
@@ -254,7 +264,14 @@ define('niagara-animation', function(require) {
      //     {dial: $('#i').dial({$fade:0},{$fade:1}), duration: 100, repeat: 4, backAndForth: true},  // plays the animation back and forth 4 times (acutal duration 800ms!)
      //     {dial: $('#j').dial({$fade:0},{$fade:1}), duration: 100, repeatMs: 750},  // repeats the animation for 750 ms (will be executed 7.5 times)
      //     // execute several items in parallel. Blocks until all blocking items are done.
-     //     [{dial: $('#h').dial({$fade:0},{$fade:1}), wait: 500}, {toggle: $('#i').toggle({$fade:0},{$fade:1}, 100), wait: 2000},]: $('#h').dial({$fade:0},{$fade:1}), wait: 500}, {toggle: $('#i').toggle({$fade:0},{$fade:1}, 100), wait: 2000},]
+     //     [{dial: $('#h').dial({$fade:0},{$fade:1}), wait: 500}, {toggle: $('#i').toggle({$fade:0},{$fade:1}, 100), wait: 2000},]: $('#h').dial({$fade:0},{$fade:1}), wait: 500}, {toggle: $('#i').toggle({$fade:0},{$fade:1}, 100), wait: 2000}],
+     //           {keyframe: '#elem', props: {'@x': 34}, wait: 50},                      // keyframe animation: animates x to 34. Uses auto-smooth. Next step in 50.
+     //           {keyframe: '#elem', props: {'@x': 30}, linear: true, wait: 10},        // animates x to 30. Linear anim. Next step in 10.
+     //           {keyframe: '#elem', props: {'@x': 50}, velocity: {'@x': 2}, wait: 50}, // animates x to 50. Has given velocity at this keyframe. Next step in 50.
+     //           {keyframe: '#elem', props: {'@x': 10}, velocityBefore: {'@x': -2}, velocityAfter: {'@x': 2}, wait: 50}, // animates x to 10. Velocity changes from -2 to 2 instantly.
+     //           {keyframe: '#elem', auto: ['@x'], wait: 50},                           // Uses the initial value for @x as key frame instead of value in props.
+     //           {keystop: '#elem', props: {'@x': 100}}                                 // same as {keyframe: '#elem', props: {'@x': 10}, velocity: {'@x': 0}},
+
      // ]
      //
      // repeat, repeatMs and backAndForth are only allowed for dial.
@@ -306,20 +323,108 @@ define('niagara-animation', function(require) {
                     tDuration: tDuration, // null if infinite
                     tForward: e.forward == null ? true : e.forward,
                     tBackward: e.backward == null ? true : e.backward,
-                    tContent: e.loop || e.timeline || e.dial || e.toggle || e.callback});
+                    tContent: e.loop || e.timeline || e.dial || e.toggle || e.callback,
+                    tKeyFrame: e.keyframe || e.keystop});
             }
+        }
+
+        function processKeyFramesItems(items) {
+            var keyframePos = {}; // (selector or nodeId) -> property -> {kf: keyFrame, prevTime: 0, item: item, values: valArray, preValues: valArray}
+            function processKeyFrame(kf) {
+                function processProps(targetKey) {
+                    var target = keyframePos[targetKey];
+                    if (!target)
+                        target = keyframePos[targetKey] = {};
+                    _.eachObj(kf.props, function(propName, propValueS) {
+                        var propEntry = target[propName];
+                        var newValues = extractInterpolatable(propValueS);
+                        if (propEntry == null) // 1st keyframe for the property
+                            target[propName] = {kf: kf, values: newValues};
+                        else {
+                            var veloStartUserSet, veloStart = [0], veloEndUserSet, veloEnd = [0];
+                            if (propEntry.kf.velocity && propEntry.kf.velocity[propName] != null) {
+                                veloStart = _(propEntry.kf.velocity[propName]);
+                                veloStartUserSet = true;
+                            }
+                            if (propEntry.kf.velocityAfter && propEntry.kf.velocityAfter[propName] != null) {
+                                veloStart = _(propEntry.kf.velocityAfter[propName]);
+                                veloStartUserSet = true;
+                            }
+                            if (kf.velocity && kf.velocity[propName] != null) {
+                                veloEnd = _(kf.velocity[propName]);
+                                veloEndUserSet = true;
+                            }
+                            if (kf.velocityBefore && kf.velocityBefore[propName] != null) {
+                                veloEnd = _(kf.velocityBefore[propName]);
+                                veloEndUserSet = true;
+                            }
+
+                            if (propEntry.preValues != null) { // >= 3rd keyframe: correct velocity of prev entry and use as start
+                                var d = (kf.tStart - propEntry.prevTime) || 1;
+                                var v = _.map(propEntry.preValues, function(val, index) {
+                                    return (newValues[index] - val) / d;
+                                });                                
+                                if (!propEntry.item.tVeloEndUserSet)
+                                    propEntry.item.tVeloEnd = v;
+                                if (!veloStartUserSet)
+                                    veloStart = v;
+                            }
+                            var newItem = {tStart: propEntry.kf.tStart, tDuration: kf.tStart - propEntry.kf.tStart, 
+                                tPropName: propName, tPropTemplate: propValueS, tFrom: propEntry.values, tTo: newValues,
+                                tVeloStart: veloStart, tVeloEnd: veloEnd, 
+                                tVeloStartUserSet: tVeloStartUserSet, tVeloEndUserSet: tVeloEndUserSet};
+                            propEntry.prevTime = propEntry.kf.tStart;
+                            propEntry.preValues = propEntry.values;
+                            propEntry.values = newValues;
+                            propEntry.item = newItem;
+                            propEntry.kf = kf;
+                            return newItem;
+                        }
+                    });
+                }
+                if (_.isString(kfTarget))
+                    return processProps(kfTarget);
+                else
+                    return $(kfTarget).collect(processProps);
+            }
+
+            function populateKeyFrameItem(kfItem) {
+                kfItem.tBlockingEnd = kfItem.tStart;
+                kfItem.tBackForth = 1;
+                kfItem.tDurationPerRun = kfItem.tDuration;
+                ktItem.tForward = kfItem.tBackward = tContent = true;
+                kfItem.dial = singlePropSmoothDial(kfItem.tPropName, kfItem.tPropTemplate, kfItem.tFrom, kfItem.tVeloStart, kfItem.tTo, kfItem.tVeloEnd);
+            }
+
+            if (!items.length)
+                return;
+            var sortedItems = items.sort(function(a, b) { return a.tStart - b.tStart; });
+            return _.collect(sortedItems, processKeyFrame)
+                    .each(populateKeyFrameItem); 
+
+            // TODO: merge items with same tStart and tDuration, _.unite() the dials
+            // TODO: auto
+            // TODO: keystop
+            // TODO: linear
         }
 
         // make td a flat list of items, with additional t* properties
         var endOfTimeline = 0;
         var prevBlockingEnd = 0;
+        var keyframeItems = [];
         var td = _.collect(timelineDescriptor, function(e) {
             return _(processItem(prevBlockingEnd, e)).collect(function(r) {
                 endOfTimeline = Math.max(endOfTimeline, r.tBlockingEnd, r.tDuration != null ? r.tStart+r.tDuration : 0);
                 prevBlockingEnd = r.tBlockingEnd;
+                if (r.tKeyFrame)
+                    keyframeItems.push(r);
                 return r.tContent ? r : null;
-            });   
+            });
         });
+        var extraKfItems = processKeyFramesItems(keyframeItems);
+        if (extraKfItems)
+            td = _(td, extraKfItems);
+        
 
         // create a list of all activations and deactivations that is used to activate/deactivate in the right order
         function createTimeEvent(forward, e) {

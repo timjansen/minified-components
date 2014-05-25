@@ -376,22 +376,7 @@ describe('Animation module', function() {
 								{dial: a3=createAssertCallback([0, 0.1, 0.9, 0.9, 0.5, 0.8, 0]), duration: 10, backAndForth: true, repeatMs: 15}] 
 								]);
 			assert.equal(tl1(), 40);
-			tl1(0);
-			tl1(1);
-			tl1(4);
-			tl1(5);
-			tl1(6);
-			tl1(9);
-			tl1(10);
-			tl1(11);
-			tl1(19);
-			tl1(21);
-			tl1(26);
-			tl1(34);
-			tl1(40);
-			tl1(22);
-			tl1(7);
-			tl1(0);
+			tl1(0); tl1(1); tl1(4); tl1(5); tl1(6); tl1(9); tl1(10); tl1(11); tl1(19); tl1(21); tl1(26); tl1(34); tl1(40); tl1(22); tl1(7); tl1(0);
 
 			a1.check();
 			a2.check();
