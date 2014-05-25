@@ -77,11 +77,9 @@ define('niagara-animation', function(require) {
     }
 
     // internal, for use in keyframe timelines
-    function singlePropSmoothDial(propertyName, propertyTemplate, startValues, startVelocity, endValues, endVelocity) {
-        var self = this;
-
+    function singlePropSmoothDial(list, propertyName, propertyTemplate, startValues, startVelocity, endValues, endVelocity) {
         return function(t) {
-            self.set(propertyName, setInterpolatables(propertyTemplate, 
+            list.set(propertyName, setInterpolatables(propertyTemplate, 
                 _.map(startValues, function(start, valIndex) {
                     return interpolatePropValue(t, start, endValues[valIndex], startVelocity[valIndex], endVelocity[valIndex]);
                })));
@@ -331,7 +329,10 @@ define('niagara-animation', function(require) {
         function processKeyFramesItems(items) {
             var keyframePos = {}; // (selector or nodeId) -> property -> {kf: keyFrame, prevTime: 0, item: item, values: valArray, preValues: valArray}
             function processKeyFrame(kf) {
+                var kfTarget = kf.tKeyFrame;
+
                 function processProps(targetKey) {
+                    var newItems = [];
                     var target = keyframePos[targetKey];
                     if (!target)
                         target = keyframePos[targetKey] = {};
@@ -341,21 +342,28 @@ define('niagara-animation', function(require) {
                         if (propEntry == null) // 1st keyframe for the property
                             target[propName] = {kf: kf, values: newValues};
                         else {
-                            var veloStartUserSet, veloStart = [0], veloEndUserSet, veloEnd = [0];
-                            if (propEntry.kf.velocity && propEntry.kf.velocity[propName] != null) {
-                                veloStart = _(propEntry.kf.velocity[propName]);
+                            function readVelocity(velocityObj, propName) {
+                                if (_.isObject(velocityObj))
+                                    return velocityObj[propName] != null ? _(velocityObj[propName]) : null;
+                                else
+                                    return velocityObj != null ? _(velocityObj) : null;
+                            }
+
+                            var vv, veloStartUserSet, veloStart = [0], veloEndUserSet, veloEnd = [0];
+                            if ((vv = readVelocity(propEntry.kf.velocity, propName)) != null) {
+                                veloStart = vv;
                                 veloStartUserSet = true;
                             }
-                            if (propEntry.kf.velocityAfter && propEntry.kf.velocityAfter[propName] != null) {
-                                veloStart = _(propEntry.kf.velocityAfter[propName]);
+                            if ((vv = readVelocity(propEntry.kf.velocityAfter, propName)) != null) {
+                                veloStart = vv;
                                 veloStartUserSet = true;
                             }
-                            if (kf.velocity && kf.velocity[propName] != null) {
-                                veloEnd = _(kf.velocity[propName]);
+                            if ((vv = readVelocity(kf.velocity, propName)) != null) {
+                                veloEnd = vv;
                                 veloEndUserSet = true;
                             }
-                            if (kf.velocityBefore && kf.velocityBefore[propName] != null) {
-                                veloEnd = _(kf.velocityBefore[propName]);
+                            if ((vv = readVelocity(kf.velocityBefore, propName)) != null) {
+                                veloEnd = vv;
                                 veloEndUserSet = true;
                             }
 
@@ -368,19 +376,22 @@ define('niagara-animation', function(require) {
                                     propEntry.item.tVeloEnd = v;
                                 if (!veloStartUserSet)
                                     veloStart = v;
+                                propEntry.item.tNoDeactivation = true;
                             }
-                            var newItem = {tStart: propEntry.kf.tStart, tDuration: kf.tStart - propEntry.kf.tStart, 
+                            var newItem = {tStart: propEntry.kf.tStart, tDuration: kf.tStart - propEntry.kf.tStart, tTarget: $(kfTarget), 
                                 tPropName: propName, tPropTemplate: propValueS, tFrom: propEntry.values, tTo: newValues,
                                 tVeloStart: veloStart, tVeloEnd: veloEnd, 
-                                tVeloStartUserSet: tVeloStartUserSet, tVeloEndUserSet: tVeloEndUserSet};
+                                tVeloStartUserSet: veloStartUserSet, tVeloEndUserSet: veloEndUserSet,
+                                tNoDeactivationBack: propEntry.preValues != null};
                             propEntry.prevTime = propEntry.kf.tStart;
                             propEntry.preValues = propEntry.values;
                             propEntry.values = newValues;
                             propEntry.item = newItem;
                             propEntry.kf = kf;
-                            return newItem;
+                            newItems.push(newItem);
                         }
                     });
+                    return newItems;
                 }
                 if (_.isString(kfTarget))
                     return processProps(kfTarget);
@@ -392,8 +403,8 @@ define('niagara-animation', function(require) {
                 kfItem.tBlockingEnd = kfItem.tStart;
                 kfItem.tBackForth = 1;
                 kfItem.tDurationPerRun = kfItem.tDuration;
-                ktItem.tForward = kfItem.tBackward = tContent = true;
-                kfItem.dial = singlePropSmoothDial(kfItem.tPropName, kfItem.tPropTemplate, kfItem.tFrom, kfItem.tVeloStart, kfItem.tTo, kfItem.tVeloEnd);
+                kfItem.tForward = kfItem.tBackward = kfItem.tContent = true;
+                kfItem.dial = singlePropSmoothDial(kfItem.tTarget, kfItem.tPropName, kfItem.tPropTemplate, kfItem.tFrom, kfItem.tVeloStart, kfItem.tTo, kfItem.tVeloEnd);
             }
 
             if (!items.length)
@@ -472,7 +483,7 @@ console.log('eventTimeline', eventTimeline.array(), endOfTimeline);
                 var itemEnd = item.tDuration != null ? item.tStart+item.tDuration : endOfTimeline;
                 var itemIsRunnable = item.loop || item.dial || item.tTimeline; 
                 var itemIsActive = itemIsRunnable && itemDuration > 0 && t >= item.tStart && t < itemEnd;
-                if (!itemIsActive && isInTimeSpan(event.time)) {
+                if (!itemIsActive && isInTimeSpan(event.time) && !(backward ? item.tNoDeactivationBack : item.tNoDeactivation)) {
                     if (event.active) {
                         if (item.toggle && !(backward ? isInTimeSpan(item.tStart) : isInTimeSpan(itemEnd)))
                             item.toggle(true);

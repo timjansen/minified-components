@@ -383,6 +383,53 @@ describe('Animation module', function() {
 			a3.check();
 		});
 
+		it('allows simple keyframes', function() {
+			var obj = {a: 0};
+			var tl = timeline([{keyframe: obj, props: {a: 1}, wait: 10},
+				 			   {keyframe: obj, props: {a: 6}}]);
+			assert.equal(tl(), 10);
+			tl(0); assertFloat(obj.a, 1);
+			tl(5); assertFloat(obj.a, 3.5);
+			tl(7.2); assertFloat(obj.a, smoothInterpolator(1, 6, 0.72));
+			tl(10); assertFloat(obj.a, 6);
+		});
+
+		it('allows double keyframes', function() {
+			var obj = {a: 0, b: 0};
+			var tl = timeline([{keyframe: obj, props: {a: 1}, wait: 10},
+							   {keyframe: obj, props: {a: 11, b: 100}, velocity: 0, wait: 10},
+				 			   {keyframe: obj, props: {a: 16, b: 200}}]);
+			assert.equal(tl(), 20);
+			tl(0); assertFloat(obj.a, 1); assertFloat(obj.b, 0);
+			tl(5); assertFloat(obj.a, 6); assertFloat(obj.b, 0);
+			tl(10); assertFloat(obj.a, 11); assertFloat(obj.b, 100);
+			tl(11); assertFloat(obj.a, smoothInterpolator(11, 16, 0.1)); assertFloat(obj.b, smoothInterpolator(100, 200, 0.1));
+			tl(20); assertFloat(obj.a, 16); assertFloat(obj.b, 200);
+			tl(11); assertFloat(obj.a, smoothInterpolator(11, 16, 0.1)); assertFloat(obj.b, smoothInterpolator(100, 200, 0.1));
+			tl(5); assertFloat(obj.a, 6); assertFloat(obj.b, 100);
+		});
+
+		it('computes velocities', function() {
+			var obj = {a: 0};
+			var tl = timeline([{keyframe: obj, props: {a: 1}, wait: 10},
+							   {keyframe: obj, props: {a: 11}, wait: 10},
+				 			   {keyframe: obj, props: {a: 16}, wait: 5}]);
+			assert.equal(tl(), 25);
+			tl(0); assertFloat(obj.a, 1);
+			tl(5); assertFloat(obj.a, smoothInterpolator(1, 11, 0.5, 0, 0.75));
+			tl(10); assertFloat(obj.a, 11);
+			tl(11); assertFloat(obj.a, smoothInterpolator(11, 16, 0.1, 0.75, 0));
+			tl(20); assertFloat(obj.a, 16);
+			tl(21); assertFloat(obj.a, 16);
+			tl(11); assertFloat(obj.a, smoothInterpolator(11, 16, 0.1, 0.75, 0));
+		});
+
+		// TODO setting velocities
+		// TODO setting velocities after/before
+		// TODO multi-value properties, colors
+		// TODO: other set() attributes
+
+
 	});
 
 });
