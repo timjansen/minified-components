@@ -370,7 +370,7 @@ define('niagara-animation', function(require) {
                                 veloEnd = vv;
                                 veloEndUserSet = true;
                             }
-console.log(propEntry.kf.tStart, 'start', veloStart, veloStartUserSet, 'end', veloEnd, veloEndUserSet, kf.velocity, _.isObject(kf.velocity));
+
                             if (propEntry.preValues != null) { // >= 3rd keyframe: correct velocity of PREVIOUS entry and use as start for this entry
                                 var d = (kf.tStart - propEntry.prevTime) || 1;
                                 var v = _.map(propEntry.preValues, function(val, index) {
@@ -381,8 +381,6 @@ console.log(propEntry.kf.tStart, 'start', veloStart, veloStartUserSet, 'end', ve
                                 if (!veloStartUserSet)
                                     veloStart = v;
                                 propEntry.item.tNoDeactivation = true;
-if (!propEntry.item.tVeloEndUserSet)
-console.log('corrected', propEntry.item.tStart, 'end', propEntry.item.tVeloEnd, propEntry.item.tVeloEndUserSet);
                             }
                             var newItem = {tStart: propEntry.kf.tStart, tDuration: kf.tStart - propEntry.kf.tStart, tTarget: $(kfTarget), 
                                 tPropName: propName, tPropTemplate: propValueS, tFrom: propEntry.values, tTo: newValues,

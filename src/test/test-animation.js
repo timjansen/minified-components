@@ -447,11 +447,45 @@ describe('Animation module', function() {
 			tl(30); assertFloat(obj.a, smoothInterpolator(4, 27, 0.25, 2, 3));
 		});
 
-		// TODO selectors
-		// TODO multi-value properties, colors
-		// TODO: other set() attributes
+		it('works with selectors and styles', function() {
+			var d = EE('div', {id: 'xxxdiv'});
+			$('body').add(d);
+			var tl = timeline([{keyframe: '#xxxdiv', props: {$width: '1px'}, wait: 10, velocity: 3}, 
+							   {keyframe: '#xxxdiv', props: {$width: '61px'}, wait: 10},
+				 			   {keyframe: '#xxxdiv', props: {$width: '8px'}, wait: 5}
+				 			   ]);
+			assert.equal(tl(), 25);
+			tl(3); assertFloat(d.get('$width', true), smoothInterpolator(1, 61, 0.3, 3, 7/20), 1);
+			tl(8); assertFloat(d.get('$width', true), smoothInterpolator(1, 61, 0.8, 3, 7/20), 1);
+			tl(17); assertFloat(d.get('$width', true), smoothInterpolator(61, 8, 0.7, 7/20, 0), 1);
 
+			d.remove();
+		});
 
+		it('works with lists', function() {
+			var v;
+			var d = _(EE('div'), EE('div'));
+			var tl = timeline([{keyframe: d, props: {w: '1px'}, wait: 10, velocity: 3}, 
+							   {keyframe: d, props: {w: '61px'}, wait: 10},
+				 			   {keyframe: d, props: {w: '8px'}, wait: 5}
+				 			   ]);
+			assert.equal(tl(), 25);
+			tl(3); assertFloat(d.get('w', true), v=smoothInterpolator(1, 61, 0.3, 3, 7/20), 1); assertFloat(d.only(1).get('w', true), v, 1);
+			tl(8); assertFloat(d.get('w', true), v=smoothInterpolator(1, 61, 0.8, 3, 7/20), 1); assertFloat(d.only(1).get('w', true), v, 1);
+			tl(17); assertFloat(d.get('w', true), v=smoothInterpolator(61, 8, 0.7, 7/20, 0), 1); assertFloat(d.only(1).get('w', true), v, 1);
+		});
+
+		it('supports multi-value properties', function() {
+			var obj = {a: '32 1 3', b: '22 #ff0'};
+			var tl = timeline([{keyframe: obj, props: {a: '4 2 3'}, wait: 10},
+							   {keyframe: obj, props: {a: '17 5 12', b: '23 #ff0'}, wait: 10},
+				 			   {keyframe: obj, props: {a: '2 10 21', b: '20 #fffffe'}}]);
+			assert.equal(tl(), 20);
+			tl(0); assert.equal(obj.a, '4 2 3');
+			tl(5); assert.equal(obj.a.replace(/\.\d+/g, ''), '10 3 7'); assert.equal(obj.b, '22 #ff0');
+			tl(10); assert.equal(obj.a, '17 5 12'); assert.equal(obj.b, '23 #ff0');
+			tl(15); assert.equal(obj.a.replace(/\.\d+/g, ''), '9 7 16'); assert.equal(obj.b.replace(/\.\d+/g, ''), '21 rgb(255,255,127)');
+		});
 	});
 
 });
