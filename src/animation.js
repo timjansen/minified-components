@@ -281,25 +281,26 @@ define('niagara-animation', function(require) {
      // The timeline can be plugged right into $.loop(), or be used on its own.
      // Call the timeline function without arguments to make it return its duration.
      function timeline(timelineDescriptor) {
-        function processItem(tStart, e) {
+        function processItem(prevBlockingEnd, e) {
             if (_.isList(e)) {
                 if (!e.length)
                     return null;
-                var blockingEnd = tStart;
+                var blockingEnd = prevBlockingEnd;
                 var ll = _.map(e, function(li) { 
-                    var p = processItem(tStart, li);
+                    var p = processItem(prevBlockingEnd, li);
                     blockingEnd = Math.max(blockingEnd, p.tBlockingEnd);
-                    p.tBlockingEnd = tStart;
+                    p.tBlockingEnd = prevBlockingEnd;
                     return p;
                 });
                 ll[ll.length-1].tBlockingEnd = blockingEnd;
                 return ll;
             }
             else if (_.isFunction(e))
-                return processItem(tStart, {callback: e});
-            else {
+                return processItem(prevBlockingEnd, {callback: e});
+            else { 
                 if (e.timeline)
                     e.tTimeline = _.isFunction(e.timeline) ? e.timeline : timeline(e.timeline);
+                var tStart = e.pos != null ? e.pos : prevBlockingEnd;
                 var tWait = e.wait || (e.tTimeline && e.tTimeline()) || 0;
                 var tBlockingEnd = tStart+tWait ;
                 var tDurationPerRun = e.duration != null ? e.duration : tWait;

@@ -426,15 +426,29 @@ describe('Animation module', function() {
 			tl(0); assertFloat(obj.a, 1);
 		});
 
+		it('allows absolute positioning', function() {
+			var obj = {a: 0};
+			var tl = timeline([{keyframe: obj, props: {a: 1}},
+							   {keyframe: obj, props: {a: 11}, pos: 10},
+				 			   {keyframe: obj, props: {a: 16}, pos: 20, wait: 5},
+				 			   {keyframe: obj, props: {a: 4}, wait: 20}]);
+			assert.equal(tl(), 45);
+			tl(0); assertFloat(obj.a, 1);
+			tl(5); assertFloat(obj.a, smoothInterpolator(1, 11, 0.5, 0, 0.75));
+			tl(11); assertFloat(obj.a, smoothInterpolator(11, 16, 0.1, 0.75, -7/15));
+			tl(21); assertFloat(obj.a, smoothInterpolator(16, 4, 0.2, -7/15, 0));
+			tl(27); assertFloat(obj.a, 4);
+		});
+
 		it('allows manual velocity velocities', function() {
 			var obj = {a: 0};
-			var tl = timeline([{keyframe: obj, props: {a: 1}, wait: 10, velocityBefore: 3},   // 0: velocityBefore should be ignored: first element
-							   {keyframe: obj, props: {a: 11}, wait: 10, velocity: [0.5]},    // 10
-				 			   {keyframe: obj, props: {a: 16}, wait: 5, velocityBefore: 1, velocityAfter: {a: [7.2]}}, // 20
-				 			   {keyframe: obj, props: {a: 4}, wait: 20, velocity: 2},         // 25
-				 			   {keyframe: obj, props: {a: 27}, wait: 10, velocity: {a: 3}},   // 45
-				 			   {keyframe: obj, props: {a: 0}, wait: 15, velocityBefore: 1}]); // 55
-			assert.equal(tl(), 70);
+			var tl = timeline([{keyframe: obj, props: {a: 1}, velocityBefore: 3},   // 0: velocityBefore should be ignored: first element
+							   {keyframe: obj, props: {a: 11}, pos: 10, velocity: [0.5]},    // 10
+				 			   {keyframe: obj, props: {a: 16}, pos: 20, velocityBefore: 1, velocityAfter: {a: [7.2]}}, // 20
+				 			   {keyframe: obj, props: {a: 4},  pos: 25, velocity: 2},         // 25
+				 			   {keyframe: obj, props: {a: 27}, pos: 45, velocity: {a: 3}},   // 45
+				 			   {keyframe: obj, props: {a: 0},  pos: 55, velocityBefore: 1}]); // 55
+			assert.equal(tl(), 55);
 			tl(2); assertFloat(obj.a, smoothInterpolator(1, 11, 0.2, 0, 0.5));
 			tl(8); assertFloat(obj.a, smoothInterpolator(1, 11, 0.8, 0, 0.5));
 			tl(11); assertFloat(obj.a, smoothInterpolator(11, 16, 0.1, 0.5, 1));
