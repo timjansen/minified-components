@@ -300,7 +300,7 @@ define('niagara-animation', function(require) {
             else { 
                 if (e.timeline)
                     e.tTimeline = _.isFunction(e.timeline) ? e.timeline : timeline(e.timeline);
-                var tStart = e.pos != null ? e.pos : prevBlockingEnd;
+                var tStart = e.start != null ? e.start : prevBlockingEnd;
                 var tWait = e.wait || (e.tTimeline && e.tTimeline()) || 0;
                 var tBlockingEnd = tStart+tWait ;
                 var tDurationPerRun = e.duration != null ? e.duration : tWait;
@@ -425,7 +425,6 @@ define('niagara-animation', function(require) {
             // TODO: merge items with same tStart and tDuration, _.unite() the dials
             // TODO: auto
             // TODO: linear
-            // TODO: 'start' to set tStart directly
         }
 
         // make td a flat list of items, with additional t* properties
