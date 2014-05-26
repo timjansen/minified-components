@@ -486,6 +486,23 @@ describe('Animation module', function() {
 			tl(10); assert.equal(obj.a, '17 5 12'); assert.equal(obj.b, '23 #ff0');
 			tl(15); assert.equal(obj.a.replace(/\.\d+/g, ''), '9 7 16'); assert.equal(obj.b.replace(/\.\d+/g, ''), '21 rgb(255,255,127)');
 		});
+
+		it('provides keystop frames', function() {
+			var obj = {a: 0};
+			var tl = timeline([{keyframe: obj, props: {a: 1}, wait: 10},
+							   {keyframe: obj, props: {a: 11}, wait: 10},
+				 			   {keystop: obj, props: {a: 16}, wait: 5},
+				 			   {keyframe: obj, props: {a: 4}, wait: 10},
+				 			   {keystop: obj, props: {a: 31}, wait: 20}]);
+			assert.equal(tl(), 55);
+			tl(5); assertFloat(obj.a, smoothInterpolator(1, 11, 0.5, 0, 15/20));
+			tl(11); assertFloat(obj.a, smoothInterpolator(11, 16, 0.1, 15/20, 0));
+			tl(20); assertFloat(obj.a, 16);
+			tl(21); assertFloat(obj.a, 16);
+			tl(24); assertFloat(obj.a, 16);
+			tl(25); assertFloat(obj.a, 4);
+			tl(27); assertFloat(obj.a, smoothInterpolator(4, 31, 0.2, 0, 0));
+		});
 	});
 
 });

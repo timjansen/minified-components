@@ -323,7 +323,7 @@ define('niagara-animation', function(require) {
                     tForward: e.forward == null ? true : e.forward,
                     tBackward: e.backward == null ? true : e.backward,
                     tContent: !!(e.loop || e.timeline || e.dial || e.toggle || e.callback),
-                    tKeyFrame: e.keyframe || e.keystop,
+                    tKeyFrame: !!(e.keyframe || e.keystop),
                     tNoDeactivation: !!e.loop,
                     tNoDeactivationBack: !!e.loop
                 });
@@ -333,7 +333,8 @@ define('niagara-animation', function(require) {
         function processKeyFramesItems(items) {
             var keyframePos = {}; // (selector or nodeId) -> property -> {kf: keyFrame, prevTime: 0, item: item, values: valArray, preValues: valArray}
             function processKeyFrame(kf) {
-                var kfTarget = kf.tKeyFrame;
+                var kfTarget = kf.keyframe || kf.keystop;
+                var stopFrame = !!kf.keystop;
 
                 function processProps(targetKey) {
                     var newItems = [];
@@ -393,6 +394,9 @@ define('niagara-animation', function(require) {
                             propEntry.item = newItem;
                             propEntry.kf = kf;
                             newItems.push(newItem);
+
+                            if (stopFrame)
+                                delete target[propName];
                         }
                     });
                     return newItems;
@@ -419,7 +423,6 @@ define('niagara-animation', function(require) {
 
             // TODO: merge items with same tStart and tDuration, _.unite() the dials
             // TODO: auto
-            // TODO: keystop
             // TODO: linear
             // TODO: 'start' to set tStart directly
         }
