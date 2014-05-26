@@ -264,6 +264,7 @@ define('niagara-animation', function(require) {
      //     // execute several items in parallel. Blocks until all blocking items are done.
      //     [{dial: $('#h').dial({$fade:0},{$fade:1}), wait: 500}, {toggle: $('#i').toggle({$fade:0},{$fade:1}, 100), wait: 2000},]: $('#h').dial({$fade:0},{$fade:1}), wait: 500}, {toggle: $('#i').toggle({$fade:0},{$fade:1}, 100), wait: 2000}],
      //           {keyframe: '#elem', props: {'@x': 34}, wait: 50},                      // keyframe animation: animates x to 34. Uses auto-smooth. Next step in 50.
+     //           {keyframe: '#elem', props: {'@x': 55}, start: 61},                     // keyframe animation: absolute positioning.
      //           {keyframe: '#elem', props: {'@x': 30}, linear: true, wait: 10},        // animates x to 30. Linear anim. Next step in 10.
      //           {keyframe: '#elem', props: {'@x': 50}, velocity: {'@x': 2}, wait: 50}, // animates x to 50. Has given velocity at this keyframe. Next step in 50.
      //           {keyframe: '#elem', props: {'@x': 10}, velocityBefore: {'@x': -2}, velocityAfter: {'@x': 2}, wait: 50}, // animates x to 10. Velocity changes from -2 to 2 instantly.
@@ -321,8 +322,11 @@ define('niagara-animation', function(require) {
                     tDuration: tDuration, // null if infinite
                     tForward: e.forward == null ? true : e.forward,
                     tBackward: e.backward == null ? true : e.backward,
-                    tContent: e.loop || e.timeline || e.dial || e.toggle || e.callback,
-                    tKeyFrame: e.keyframe || e.keystop});
+                    tContent: !!(e.loop || e.timeline || e.dial || e.toggle || e.callback),
+                    tKeyFrame: e.keyframe || e.keystop,
+                    tNoDeactivation: !!e.loop,
+                    tNoDeactivationBack: !!e.loop
+                });
             }
         }
 
@@ -343,7 +347,7 @@ define('niagara-animation', function(require) {
                             target[propName] = {kf: kf, values: newValues};
                         else {
                             function readVelocity(velocityObj, propName) {
-                                if (_.isObject(velocityObj))
+                                if (_.isObject(velocityObj) && !_.isList(velocityObj))
                                     return velocityObj[propName] != null ? _(velocityObj[propName]) : null;
                                 else
                                     return velocityObj != null ? _(velocityObj) : null;
@@ -366,8 +370,8 @@ define('niagara-animation', function(require) {
                                 veloEnd = vv;
                                 veloEndUserSet = true;
                             }
-
-                            if (propEntry.preValues != null) { // >= 3rd keyframe: correct velocity of prev entry and use as start
+console.log(propEntry.kf.tStart, 'start', veloStart, veloStartUserSet, 'end', veloEnd, veloEndUserSet, kf.velocity, _.isObject(kf.velocity));
+                            if (propEntry.preValues != null) { // >= 3rd keyframe: correct velocity of PREVIOUS entry and use as start for this entry
                                 var d = (kf.tStart - propEntry.prevTime) || 1;
                                 var v = _.map(propEntry.preValues, function(val, index) {
                                     return (newValues[index] - val) / d;
@@ -377,6 +381,8 @@ define('niagara-animation', function(require) {
                                 if (!veloStartUserSet)
                                     veloStart = v;
                                 propEntry.item.tNoDeactivation = true;
+if (!propEntry.item.tVeloEndUserSet)
+console.log('corrected', propEntry.item.tStart, 'end', propEntry.item.tVeloEnd, propEntry.item.tVeloEndUserSet);
                             }
                             var newItem = {tStart: propEntry.kf.tStart, tDuration: kf.tStart - propEntry.kf.tStart, tTarget: $(kfTarget), 
                                 tPropName: propName, tPropTemplate: propValueS, tFrom: propEntry.values, tTo: newValues,
@@ -417,6 +423,7 @@ define('niagara-animation', function(require) {
             // TODO: auto
             // TODO: keystop
             // TODO: linear
+            // TODO: 'start' to set tStart directly
         }
 
         // make td a flat list of items, with additional t* properties
@@ -441,9 +448,9 @@ define('niagara-animation', function(require) {
         function createTimeEvent(forward, e) {
             if (forward ? e.tForward : e.tBackward) {
                 var entry1 = {time: e.tStart, active: forward, item: e};
-                if (e.tDuration == null)
+                if (e.tDuration == null && !e.tNoDeactivation)
                     return [{time: e.tStart, active: forward, item: e}, {time: endOfTimeline, active: !forward, item: e}];
-                else if (e.tDuration > 0)
+                else if (e.tDuration > 0 && !e.tNoDeactivation)
                     return [{time: e.tStart, active: forward, item: e}, {time: e.tStart+e.tDuration, active: !forward, item: e}];
                 else
                     return {time: e.tStart, active: true, item: e};
@@ -509,7 +516,7 @@ console.log('eventTimeline', eventTimeline.array(), endOfTimeline);
                     }
                 }
                 // Regular anim
-                if (itemIsActive && backward == !event.active) {
+                if (itemIsActive && event.active) {
                     if (item.loop)
                         item.loop(relT);
                     if (item.dial) {

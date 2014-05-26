@@ -409,23 +409,45 @@ describe('Animation module', function() {
 			tl(5); assertFloat(obj.a, 6); assertFloat(obj.b, 100);
 		});
 
-		it('computes velocities', function() {
+		it('auto-computes velocities', function() {
 			var obj = {a: 0};
 			var tl = timeline([{keyframe: obj, props: {a: 1}, wait: 10},
 							   {keyframe: obj, props: {a: 11}, wait: 10},
-				 			   {keyframe: obj, props: {a: 16}, wait: 5}]);
-			assert.equal(tl(), 25);
+				 			   {keyframe: obj, props: {a: 16}, wait: 5},
+				 			   {keyframe: obj, props: {a: 4}, wait: 20}]);
+			assert.equal(tl(), 45);
 			tl(0); assertFloat(obj.a, 1);
 			tl(5); assertFloat(obj.a, smoothInterpolator(1, 11, 0.5, 0, 0.75));
 			tl(10); assertFloat(obj.a, 11);
-			tl(11); assertFloat(obj.a, smoothInterpolator(11, 16, 0.1, 0.75, 0));
+			tl(11); assertFloat(obj.a, smoothInterpolator(11, 16, 0.1, 0.75, -7/15));
 			tl(20); assertFloat(obj.a, 16);
-			tl(21); assertFloat(obj.a, 16);
-			tl(11); assertFloat(obj.a, smoothInterpolator(11, 16, 0.1, 0.75, 0));
+			tl(21); assertFloat(obj.a, smoothInterpolator(16, 4, 0.2, -7/15, 0));
+			tl(27); assertFloat(obj.a, 4);
+			tl(0); assertFloat(obj.a, 1);
 		});
 
-		// TODO setting velocities
-		// TODO setting velocities after/before
+		it('allows manual velocity velocities', function() {
+			var obj = {a: 0};
+			var tl = timeline([{keyframe: obj, props: {a: 1}, wait: 10, velocityBefore: 3},   // 0: velocityBefore should be ignored: first element
+							   {keyframe: obj, props: {a: 11}, wait: 10, velocity: [0.5]},    // 10
+				 			   {keyframe: obj, props: {a: 16}, wait: 5, velocityBefore: 1, velocityAfter: {a: [7.2]}}, // 20
+				 			   {keyframe: obj, props: {a: 4}, wait: 20, velocity: 2},         // 25
+				 			   {keyframe: obj, props: {a: 27}, wait: 10, velocity: {a: 3}},   // 45
+				 			   {keyframe: obj, props: {a: 0}, wait: 15, velocityBefore: 1}]); // 55
+			assert.equal(tl(), 70);
+			tl(2); assertFloat(obj.a, smoothInterpolator(1, 11, 0.2, 0, 0.5));
+			tl(8); assertFloat(obj.a, smoothInterpolator(1, 11, 0.8, 0, 0.5));
+			tl(11); assertFloat(obj.a, smoothInterpolator(11, 16, 0.1, 0.5, 1));
+			tl(19); assertFloat(obj.a, smoothInterpolator(11, 16, 0.9, 0.5, 1));
+			tl(20); assertFloat(obj.a, 16);
+			tl(21); assertFloat(obj.a, smoothInterpolator(16, 4, 0.2, 7.2, 2));
+			tl(30); assertFloat(obj.a, smoothInterpolator(4, 27, 0.25, 2, 3));
+			tl(46); assertFloat(obj.a, smoothInterpolator(27, 0, 0.1, 3, 1));
+			tl(56); assertFloat(obj.a, 0);
+			tl(30); assertFloat(obj.a, smoothInterpolator(4, 27, 0.25, 2, 3));
+		});
+
+		// TODO selectors
 		// TODO multi-value properties, colors
 		// TODO: other set() attributes
 
