@@ -353,9 +353,16 @@ define('niagara-animation', function(require) {
                                     return velocityObj[propName] != null ? _(velocityObj[propName]) : null;
                                 else
                                     return velocityObj != null ? _(velocityObj) : null;
+
                             }
 
+                            var tDuration = kf.tStart - propEntry.kf.tStart;
+                            var tLinear = !!propEntry.kf.linear;
                             var vv, veloStartUserSet, veloStart = [0], veloEndUserSet, veloEnd = [0];
+                            if (propEntry.prevLinear) {
+                                veloStart = propEntry.item.tVeloEnd;
+                                veloStartUserSet = true;
+                            }
                             if ((vv = readVelocity(propEntry.kf.velocity, propName)) != null) {
                                 veloStart = vv;
                                 veloStartUserSet = true;
@@ -373,7 +380,18 @@ define('niagara-animation', function(require) {
                                 veloEndUserSet = true;
                             }
 
-                            if (propEntry.preValues != null) { // >= 3rd keyframe: correct velocity of PREVIOUS entry and use as start for this entry
+                            if (propEntry.kf.linear) {
+                                var d = tDuration || 1;
+                                var v = _.map(propEntry.values, function(val, index) {
+                                    return (newValues[index] - val) / d;
+                                });
+                                veloStart = veloEnd = v;
+                                veloStartUserSet = veloEndUserSet = true;
+
+                                if (propEntry.item && !propEntry.item.tVeloEndUserSet)
+                                    propEntry.item.tVeloEnd = v;
+                            }
+                            else if (propEntry.preValues != null) { // >= 3rd keyframe: correct velocity of PREVIOUS entry and use as start for this entry
                                 var d = (kf.tStart - propEntry.prevTime) || 1;
                                 var v = _.map(propEntry.preValues, function(val, index) {
                                     return (newValues[index] - val) / d;
@@ -384,13 +402,14 @@ define('niagara-animation', function(require) {
                                     veloStart = v;
                                 propEntry.item.tNoDeactivation = true;
                             }
-                            var newItem = {tStart: propEntry.kf.tStart, tDuration: kf.tStart - propEntry.kf.tStart, tTarget: $(kfTarget), 
+                            var newItem = {tStart: propEntry.kf.tStart, tDuration: tDuration, tTarget: $(kfTarget), 
                                 tPropName: propName, tPropTemplate: propValueS, tFrom: propEntry.values, tTo: newValues,
                                 tVeloStart: veloStart, tVeloEnd: veloEnd, 
                                 tVeloStartUserSet: veloStartUserSet, tVeloEndUserSet: veloEndUserSet,
-                                tNoDeactivationBack: propEntry.preValues != null};
+                                tNoDeactivationBack: propEntry.preValues != null, tLinear: tLinear};
                             propEntry.prevTime = propEntry.kf.tStart;
                             propEntry.preValues = propEntry.values;
+                            propEntry.prevLinear = propEntry.kf.linear;
                             propEntry.values = newValues;
                             propEntry.item = newItem;
                             propEntry.kf = kf;
@@ -424,7 +443,6 @@ define('niagara-animation', function(require) {
 
             // TODO: merge items with same tStart and tDuration, _.unite() the dials
             // TODO: auto
-            // TODO: linear
         }
 
         // make td a flat list of items, with additional t* properties

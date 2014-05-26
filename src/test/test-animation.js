@@ -517,6 +517,20 @@ describe('Animation module', function() {
 			tl(25); assertFloat(obj.a, 4);
 			tl(27); assertFloat(obj.a, smoothInterpolator(4, 31, 0.2, 0, 0));
 		});
+
+		it('supports linear segments', function() {
+			var obj = {a: 0};
+			var tl = timeline([{keyframe: obj, props: {a: 4}},
+							   {keyframe: obj, props: {a: 15}, linear: true, start: 10},
+				 			   {keyframe: obj, props: {a: 20}, linear: true, start: 20},
+				 			   {keyframe: obj, props: {a: 30}, start: 30}, 
+				 			   {keyframe: obj, props: {a: 25}, start: 40}]);
+			assert.equal(tl(), 40);
+			tl(3); assertFloat(obj.a, smoothInterpolator(4, 15, 0.3, 0, 0.5));
+			tl(19); assertFloat(obj.a, smoothInterpolator(15, 20, 0.9, 0.5, 0.5));
+			tl(22); assertFloat(obj.a, smoothInterpolator(20, 30, 0.2, 1, 1));
+			tl(36); assertFloat(obj.a, smoothInterpolator(30, 25, 0.6, 1, 0));
+		});
 	});
 
 });
