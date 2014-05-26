@@ -86,6 +86,14 @@ define('niagara-animation', function(require) {
         };
     }
 
+    // internal, for use in keyframe timelines
+    function createDialListFunc(list) {
+        return function(t) {
+            for (var i = 0, l = list.length; i < l; i++)
+                list[i](t);
+        };
+    }
+
 	function smoothDial(properties1, properties2, velocities1, velocities2) {
 		var self = this;
 
@@ -434,22 +442,45 @@ define('niagara-animation', function(require) {
                     return $(kfTarget).collect(processProps);
             }
 
-            function populateKeyFrameItem(kfItem) {
-                kfItem.tBlockingEnd = kfItem.tStart;
-                kfItem.tBackForth = 1;
-                kfItem.tDurationPerRun = kfItem.tDuration;
-                kfItem.tForward = kfItem.tBackward = kfItem.tContent = true;
-                kfItem.dial = singlePropSmoothDial(kfItem.tTarget, kfItem.tPropName, kfItem.tPropTemplate, kfItem.tFrom, kfItem.tVeloStart, kfItem.tTo, kfItem.tVeloEnd);
-            }
-
             if (!items.length)
                 return;
-            var sortedItems = items.sort(function(a, b) { return a.tStart - b.tStart; });
-            return _.collect(sortedItems, processKeyFrame)
-                    .each(populateKeyFrameItem); 
 
-            // TODO: merge items with same tStart and tDuration, _.unite() the dials
-            // TODO: auto
+            var sortedItems = items.sort(function(a, b) { return a.tStart - b.tStart; });
+            var itemMap = {}; // tStart -> tDuration -> tNoDeactivationBack -> []
+            _.collect(sortedItems, processKeyFrame).each(function(item) {
+                var tStart = item.tStart, tDuration = item.tDuration, tNoDeactivationBack = item.tNoDeactivationBack;
+                if (!itemMap[tStart])
+                    itemMap[tStart] = {};
+                if (!itemMap[tStart][tDuration])
+                    itemMap[tStart][tDuration] = {};
+                if (!itemMap[tStart][tDuration][tNoDeactivationBack])
+                    itemMap[tStart][tDuration][tNoDeactivationBack] = [item];
+                else
+                    itemMap[tStart][tDuration][tNoDeactivationBack].push(item);
+            });
+            var optimizedItems = [];
+            _.eachObj(itemMap, function(tStart, itemMapBytStart) {
+                _.eachObj(itemMapBytStart, function(tDuration, itemMapBytDuration) {
+                    _.eachObj(itemMapBytDuration, function(tNoDeactivationBack, itemList) {
+                        var it = itemList[0];
+                        var newItem = {tStart: it.tStart, tDuration: it.tDuration, tNoDeactivationBack: it.tNoDeactivationBack,
+                                tBlockingEnd: it.tStart, tBackForth: 1, tDurationPerRun: it.tDuration, tForward: true, tBackward: true, tContent: true
+                        };
+                        if (itemList.length == 1) {
+                            newItem.dial = singlePropSmoothDial(it.tTarget, it.tPropName, it.tPropTemplate, it.tFrom, it.tVeloStart, it.tTo, it.tVeloEnd);
+                        }
+                        else {
+                            var dialList = _.map(it, function(item) {
+                                return singlePropSmoothDial(it.tTarget, it.tPropName, it.tPropTemplate, it.tFrom, it.tVeloStart, it.tTo, it.tVeloEnd);
+                            });
+                            newItem.dial = createDialListFunc(dialList); // external func to prevent closure
+                        }
+                        optimizedItems.push(newItem);
+                    });
+
+                });
+            });
+            return optimizedItems;
         }
 
         // make td a flat list of items, with additional t* properties
@@ -486,8 +517,6 @@ define('niagara-animation', function(require) {
         var eventTimeline = td.collect(_.partial(createTimeEvent, [true])).sort(function(a, b) { return a.time - b.time; });
         var reverseTimeline = td.collect(_.partial(createTimeEvent, [false])).sort(function(a, b) { return b.time - a.time; });
        
-console.log('eventTimeline', eventTimeline.array(), endOfTimeline);
-
         var lastT = null;
         return function(t, stop) {
             if (t == null)   // if no arg/no t -> return duration
