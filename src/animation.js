@@ -339,10 +339,15 @@ define('niagara-animation', function(require) {
 
                 function processProps(targetKey) {
                     var newItems = [];
+                    var autoProps = {};
                     var target = keyframePos[targetKey];
                     if (!target)
                         target = keyframePos[targetKey] = {};
-                    _.eachObj(kf.props, function(propName, propValueS) {
+
+                    _.each(kf.auto, function(propName) {
+                        autoProps[propName] = $(kfTarget).get(propName);
+                    });
+                    function processProperty(propName, propValueS) {
                         var propEntry = target[propName];
                         var newValues = extractInterpolatable(propValueS);
                         if (propEntry == null) // 1st keyframe for the property
@@ -418,7 +423,9 @@ define('niagara-animation', function(require) {
                             if (stopFrame)
                                 delete target[propName];
                         }
-                    });
+                    }
+                    _.eachObj(autoProps, processProperty);
+                    _.eachObj(kf.props, processProperty);
                     return newItems;
                 }
                 if (_.isString(kfTarget))

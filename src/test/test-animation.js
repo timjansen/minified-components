@@ -531,6 +531,18 @@ describe('Animation module', function() {
 			tl(22); assertFloat(obj.a, smoothInterpolator(20, 30, 0.2, 1, 1));
 			tl(36); assertFloat(obj.a, smoothInterpolator(30, 25, 0.6, 1, 0));
 		});
+
+		it('supports auto-props', function() {
+			var obj = {a: '4 2 3', b: '23 #ff0'};
+			var tl = timeline([{keyframe: obj, auto: ['a'], wait: 10},
+							   {keyframe: obj, props: {a: '17 5 12'}, auto: ['b'], wait: 10},
+				 			   {keyframe: obj, props: {a: '2 10 21', b: '20 #fffffe'}}]);
+			assert.equal(tl(), 20);
+			tl(0); assert.equal(obj.a, '4 2 3');
+			tl(5); assert.equal(obj.a.replace(/\.\d+/g, ''), '10 3 7'); assert.equal(obj.b, '23 #ff0');
+			tl(10); assert.equal(obj.a, '17 5 12'); assert.equal(obj.b, '23 #ff0');
+			tl(15); assert.equal(obj.a.replace(/\.\d+/g, ''), '9 7 16'); assert.equal(obj.b.replace(/\.\d+/g, ''), '21 rgb(255,255,127)');
+		});
 	});
 
 });
