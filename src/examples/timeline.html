@@ -1,0 +1,42 @@
+<html>
+	<head><title>Animation / Timeline Test</title>
+
+	<style type="text/css">
+		body { font: 20px/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif; }
+		#pageContainer { margin: 0.5em; }
+		#container { 
+			width: 400px; height: 400px;
+			border: 1px solid #ddd;
+			margin: 15px;
+			padding: 0;
+			overflow: hidden;
+			position: relative;
+		}
+	</style> 
+
+	<script type="text/javascript" src="minified-src.js"></script>
+	<script type="text/javascript" src="animation.js"></script>
+  	<script>
+  		var NIAGARA = require('minified'), $ = NIAGARA.$, $$=NIAGARA.$$, EE = NIAGARA.EE, HTML = NIAGARA.HTML;
+  		var _ = NIAGARA._;
+  		var niaAnim = require('niagara-animation');
+
+  		var timeline = niaAnim.timeline([]);
+
+  		$(function() {
+ 			 	
+  		});
+  	</script>
+	</head>
+	<body>
+		<div id="pageContainer">
+			<h2 id="title">Animation / Timeline Test</h2>
+
+			<div id="container">
+				
+			</div>	
+			<button id="play">Play</button><button id="stop">Stop</button>
+		</div>		
+	</body>
+</html>
+
