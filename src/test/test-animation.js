@@ -545,17 +545,22 @@ describe('Animation module', function() {
 		});
 
 		it('supports show and hide', function() {
-			var d = EE('div', {id: 'xxxdiv', $display: 'none'});
-			$('body').add(d);
-			var tl = timeline([{show: '#xxxdiv', wait: 10}, 
-							   {hide: '#xxxdiv', wait: 10}
-							  ]);
-			assert.equal($('#xxxdiv').get('$$show'), 0);
-			tl(0); assert.equal($('#xxxdiv').get('$$show'), 1);
-			tl(17); assert.equal($('#xxxdiv').get('$$show'), 0);
+			var container = EE('div');
+			var d = EE('div', {$: 'xxxdiv', $display: 'none'});
+			$('body').add(container.add(d));
+			var decoy = EE('div', {$: 'xxxdiv', $display: 'none'});
+			$('body').add(decoy);
 
-			d.remove();
+			var tl = timeline(container, [{show: '.xxxdiv', wait: 10}, {hide: '.xxxdiv', wait: 10} ]);
+			assert.equal(d.get('$$show'), 0);
+			tl(0); assert.equal(d.get('$$show'), 1); assert.equal(decoy.get('$$show'), 0);
+			tl(17); assert.equal(d.get('$$show'), 0);
+
+			container.remove();
+			decoy.remove();
 		});
+
+
 
 	});
 

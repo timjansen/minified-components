@@ -154,6 +154,51 @@ define('niagara-animation', function(require) {
         return animateDial(this.smoothDial(properties1, properties2, velStart, velEnd), duration, [this]);
     }
 
+    // returns stop function
+    function play(timeline, startPosition, autoLoop, onStop, onChange) {
+        var duration = timeline() || 1;
+        var running = true, lastT;
+        var offset = startPosition || 0;
+        function callEvents() {
+            if (onStop && !running) onStop();
+            if (onChange) onChange(lastT, running, duration);
+        }
+        var stop = $.loop(function(t, stop) {
+            lastT = autoLoop ? ((t+offset) % duration) : Math.min(t+offset, duration);
+            timeline(lastT, function() { 
+                running = false;  
+                stop(); 
+            });
+            callEvents();
+        });
+        return function() {
+            if (running) {
+                running = false;
+                stop();
+                callEvents();
+            }
+        };
+    }
+
+    // toggle to run/stop an animation
+    function playToggle(timeline, resetAfterStop, autoLoop) {
+        var state = false;
+        var stop, lastT;
+        return function(s) {
+            if (s === state)
+                return;
+            if (s === true || s === false)
+                state = s;
+            else
+                state = !state;
+
+            if (state)
+                stop = play(timeline, lastT, autoLoop, null, resetAfterStop ? function(t, running) {lastT = running?(t%duration):null;} : null)
+            else if (stop)
+                stop();
+        }
+    }
+
 
 
 	// timeline-based creation of interpolation functions, using smoothInterpolator. 
@@ -289,7 +334,10 @@ define('niagara-animation', function(require) {
      //  - stop is an optional function that will be called by the timeline function when it was invoked with t>=duration
      // The timeline can be plugged right into $.loop(), or be used on its own.
      // Call the timeline function without arguments to make it return its duration.
-     function timeline(timelineDescriptor) {
+     function timeline(ctx, timelineDescriptor) {
+        if (!timelineDescriptor)
+            return timeline(null, ctx);
+
         function processItem(prevBlockingEnd, e) {
             if (_.isList(e)) {
                 if (!e.length)
@@ -354,7 +402,7 @@ define('niagara-animation', function(require) {
                         target = keyframePos[targetKey] = {};
 
                     _.each(kf.auto, function(propName) {
-                        autoProps[propName] = $(kfTarget).get(propName);
+                        autoProps[propName] = $(kfTarget, ctx).get(propName);
                     });
                     function processProperty(propName, propValueS) {
                         var propEntry = target[propName];
@@ -416,7 +464,7 @@ define('niagara-animation', function(require) {
                                     veloStart = v;
                                 propEntry.item.tNoDeactivation = true;
                             }
-                            var newItem = {tStart: propEntry.kf.tStart, tDuration: tDuration, tTarget: $(kfTarget), 
+                            var newItem = {tStart: propEntry.kf.tStart, tDuration: tDuration, tTarget: $(kfTarget, ctx), 
                                 tPropName: propName, tPropTemplate: propValueS, tFrom: propEntry.values, tTo: newValues,
                                 tVeloStart: veloStart, tVeloEnd: veloEnd, 
                                 tVeloStartUserSet: veloStartUserSet, tVeloEndUserSet: veloEndUserSet,
@@ -440,7 +488,7 @@ define('niagara-animation', function(require) {
                 if (_.isString(kfTarget))
                     return processProps(kfTarget);
                 else
-                    return $(kfTarget).collect(processProps);
+                    return $(kfTarget, ctx).collect(processProps);
             }
 
             if (!items.length)
@@ -555,9 +603,9 @@ console.log(eventTimeline);
                 var eventInTimeSpan = isInTimeSpan(event.time);
                 if (eventInTimeSpan) {
                     if (item.show && !backward)
-                        $(item.show).show();
+                        $(item.show, ctx).show();
                     if (item.hide && backward)
-                        $(item.hide).show();
+                        $(item.hide, ctx).show();
 
                     if (!itemInProgress && !(backward ? item.tNoDeactivationBack : item.tNoDeactivation)) {
                         if (event.forwardActive) {
@@ -603,9 +651,9 @@ console.log(eventTimeline);
                 }
                 if (eventInTimeSpan) {
                     if (item.hide && !backward)
-                        $(item.hide).hide();
+                        $(item.hide, ctx).hide();
                     if (item.show && backward)
-                        $(item.show).hide();
+                        $(item.show, ctx).hide();
                 }
             });
 
@@ -622,7 +670,9 @@ console.log(eventTimeline);
         animateDial: animateDial ,
         smoothInterpolator: smoothInterpolator,
         createInterpolator: createInterpolator,
-        ease: ease
+        ease: ease,
+        play: play,
+        playToggle: playToggle
      };
 });
 
