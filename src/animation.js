@@ -269,6 +269,7 @@ define('niagara-animation', function(require) {
      //     {dial: $('#h').dial({$fade:0},{$fade:1}), duration: 100, repeat: 'forever'},  // repeats the animation very often (actually 1e6, but not inifitely)
      //     {dial: $('#i').dial({$fade:0},{$fade:1}), duration: 100, repeat: 4, backAndForth: true},  // plays the animation back and forth 4 times (acutal duration 800ms!)
      //     {dial: $('#j').dial({$fade:0},{$fade:1}), duration: 100, repeatMs: 750},  // repeats the animation for 750 ms (will be executed 7.5 times)
+     //     {show: '#invisible', hide: '#visible'},                                   // shows/hides elements using show()/hide(). Can be used everywhere.
      //     // execute several items in parallel. Blocks until all blocking items are done.
      //     [{dial: $('#h').dial({$fade:0},{$fade:1}), wait: 500}, {toggle: $('#i').toggle({$fade:0},{$fade:1}, 100), wait: 2000},]: $('#h').dial({$fade:0},{$fade:1}), wait: 500}, {toggle: $('#i').toggle({$fade:0},{$fade:1}, 100), wait: 2000}],
      //           {keyframe: '#elem', props: {'@x': 34}, wait: 50},                      // keyframe animation: animates x to 34. Uses auto-smooth. Next step in 50.
@@ -314,8 +315,8 @@ define('niagara-animation', function(require) {
                 var tDurationPerRun = e.duration != null ? e.duration : tWait;
                 var tBackForth = 1+(e.backAndForth||0);
                 var tDuration;
-                if (e.callback) {
-                    tDuration = 0;
+                if (!(e.loop || e.tTimeline || e.dial || e.toggle)) {
+                    tDuration = tDurationPerRun = 0;
                 }
                 else if (e.repeat != 'forever') {
                     var tRepetitions = e.repeat || (e.repeatMs ? e.repeatMs / tDurationPerRun : 1);
@@ -331,7 +332,7 @@ define('niagara-animation', function(require) {
                     tDuration: tDuration, // null if infinite
                     tForward: e.forward == null ? true : e.forward,
                     tBackward: e.backward == null ? true : e.backward,
-                    tContent: !!(e.loop || e.timeline || e.dial || e.toggle || e.callback),
+                    tContent: !!(e.loop || e.timeline || e.dial || e.toggle || e.callback || e.show || e.hide),
                     tKeyFrame: !!(e.keyframe || e.keystop),
                     tNoDeactivation: !!e.loop,
                     tNoDeactivationBack: !!e.loop
@@ -491,8 +492,13 @@ define('niagara-animation', function(require) {
             return _(processItem(prevBlockingEnd, e)).collect(function(r) {
                 endOfTimeline = Math.max(endOfTimeline, r.tBlockingEnd, r.tDuration != null ? r.tStart+r.tDuration : 0);
                 prevBlockingEnd = r.tBlockingEnd;
-                if (r.tKeyFrame)
+                if (r.tKeyFrame) {
                     keyframeItems.push(r);
+                    if (r.show || r.hide)
+                        return {show: r.show, hide: r.hide, tStart: r.tStart, tDuration: 0};
+                    else
+                        return null;
+                }
                 return r.tContent ? r : null;
             });
         });
@@ -504,18 +510,19 @@ define('niagara-animation', function(require) {
         // create a list of all activations and deactivations that is used to activate/deactivate in the right order
         function createTimeEvent(forward, e) {
             if (forward ? e.tForward : e.tBackward) {
-                var entry1 = {time: e.tStart, active: forward, item: e};
                 if (e.tDuration == null && !e.tNoDeactivation)
-                    return [{time: e.tStart, active: forward, item: e}, {time: endOfTimeline, active: !forward, item: e}];
+                    return [{time: e.tStart, forwardActive: forward, item: e}, {time: endOfTimeline, forwardActive: !forward, item: e}];
                 else if (e.tDuration > 0 && !e.tNoDeactivation)
-                    return [{time: e.tStart, active: forward, item: e}, {time: e.tStart+e.tDuration, active: !forward, item: e}];
+                    return [{time: e.tStart, forwardActive: forward, item: e}, {time: e.tStart+e.tDuration, forwardActive: !forward, item: e}];
                 else
-                    return {time: e.tStart, active: true, item: e};
+                    return {time: e.tStart, forwardActive: true, item: e};
             }
         };
 
         var eventTimeline = td.collect(_.partial(createTimeEvent, [true])).sort(function(a, b) { return a.time - b.time; });
         var reverseTimeline = td.collect(_.partial(createTimeEvent, [false])).sort(function(a, b) { return b.time - a.time; });
+
+console.log(eventTimeline);
        
         var lastT = null;
         return function(t, stop) {
@@ -528,7 +535,7 @@ define('niagara-animation', function(require) {
                 return;
             }
 
-            var tSpanLast = lastT || 0;
+            var tSpanLast = lastT  == null ? -1 : lastT;
             var tSpanNow = Math.min(t, endOfTimeline);
             var backward = tSpanLast > tSpanNow;
             lastT = t;
@@ -544,34 +551,42 @@ define('niagara-animation', function(require) {
                 var itemDuration = item.tDuration != null ? item.tDuration : endOfTimeline - item.tStart;
                 var itemEnd = item.tDuration != null ? item.tStart+item.tDuration : endOfTimeline;
                 var itemIsRunnable = item.loop || item.dial || item.tTimeline; 
-                var itemIsActive = itemIsRunnable && itemDuration > 0 && t >= item.tStart && t < itemEnd;
-                if (!itemIsActive && isInTimeSpan(event.time) && !(backward ? item.tNoDeactivationBack : item.tNoDeactivation)) {
-                    if (event.active) {
-                        if (item.toggle && !(backward ? isInTimeSpan(item.tStart) : isInTimeSpan(itemEnd)))
-                            item.toggle(true);
-                        if (item.callback)
-                            item.callback(tSpanNow);
-                    }
-                    else {
-                        if (item.toggle)
-                            item.toggle(false);
-                        if (item.dial) {
-                            if (item.tBackForth <= 1)
-                                item.dial(backward ? 0 : (item.tDurationPerRun > 0 && itemDuration % item.tDurationPerRun == 0) ? 1 :
-                                    (itemDuration % item.tDurationPerRun / item.tDurationPerRun));
-                            else {
-                                var x = backward ? 0 : (item.tDurationPerRun > 0 && itemDuration % (2*item.tDurationPerRun) == 1) ? 1 :
-                                    (itemDuration % (2*item.tDurationPerRun) / item.tDurationPerRun);
-                                item.dial(x < 1 ? x : 2-x);
-                            }
+                var itemInProgress = itemIsRunnable && itemDuration > 0 && t >= item.tStart && t < itemEnd;
+                var eventInTimeSpan = isInTimeSpan(event.time);
+                if (eventInTimeSpan) {
+                    if (item.show && !backward)
+                        $(item.show).show();
+                    if (item.hide && backward)
+                        $(item.hide).show();
 
+                    if (!itemInProgress && !(backward ? item.tNoDeactivationBack : item.tNoDeactivation)) {
+                        if (event.forwardActive) {
+                            if (item.toggle && !(backward ? isInTimeSpan(item.tStart) : isInTimeSpan(itemEnd)))
+                                item.toggle(true);
+                            if (item.callback)
+                                item.callback(tSpanNow, !backward);
                         }
-                        if (item.tTimeline)
-                            item.tTimeline(backward ? 0 : itemDuration);
+                        else {
+                            if (item.toggle)
+                                item.toggle(false);
+                            if (item.dial) {
+                                if (item.tBackForth <= 1)
+                                    item.dial(backward ? 0 : (item.tDurationPerRun > 0 && itemDuration % item.tDurationPerRun == 0) ? 1 :
+                                        (itemDuration % item.tDurationPerRun / item.tDurationPerRun));
+                                else {
+                                    var x = backward ? 0 : (item.tDurationPerRun > 0 && itemDuration % (2*item.tDurationPerRun) == 1) ? 1 :
+                                        (itemDuration % (2*item.tDurationPerRun) / item.tDurationPerRun);
+                                    item.dial(x < 1 ? x : 2-x);
+                                }
+
+                            }
+                            if (item.tTimeline)
+                                item.tTimeline(backward ? 0 : itemDuration);
+                        }
                     }
                 }
                 // Regular anim
-                if (itemIsActive && event.active) {
+                if (itemInProgress && event.forwardActive) {
                     if (item.loop)
                         item.loop(relT);
                     if (item.dial) {
@@ -585,6 +600,12 @@ define('niagara-animation', function(require) {
                     }
                     if (item.tTimeline)
                         item.tTimeline(relT);
+                }
+                if (eventInTimeSpan) {
+                    if (item.hide && !backward)
+                        $(item.hide).hide();
+                    if (item.show && backward)
+                        $(item.show).hide();
                 }
             });
 

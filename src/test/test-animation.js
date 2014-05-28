@@ -227,11 +227,11 @@ describe('Animation module', function() {
 			var tl1 = timeline([]);
 			assertFloat(tl1(), 0);
 			var tl2 = timeline([{duration: 22}]);
-			assertFloat(tl2(), 22);
+			assertFloat(tl2(), 0);
 			var tl3 = timeline([{wait: 100}]);
 			assertFloat(tl3(), 100);
-			var tl4 = timeline([{wait: 100}, {duration: 7}, {wait: 400}, {wait: 500}, {duration: 14}, {duration: 2000}]);
-			assertFloat(tl4(), 3000);
+			var tl4 = timeline([{wait: 100}, {duration: 7}, {wait: 400}, {wait: 500}, {duration: 14}]);
+			assertFloat(tl4(), 1000);
 		});
 
 		it('calls dials correctly / forward', function() {
@@ -288,7 +288,7 @@ describe('Animation module', function() {
 
 		it('calls callbacks correctly', function() {
 			var a1, a2, a3, a4;
-			var tl1 = timeline([{callback: a1 = createAssertCallback([0]), wait: 10},
+			var tl1 = timeline([a1 = createAssertCallback([0, 0]), {wait: 10},
 								{callback: a2 = createAssertCallback([0, 5]), forward: false, wait: 10},     // start=10
 								{callback: a3 = createAssertCallback([21, 40]), backward: false, wait: 10},  // start=20
 								{callback: a4 = createAssertCallback([30, 40, 25]), wait: 10}]);             // start=30 end=40
@@ -543,6 +543,20 @@ describe('Animation module', function() {
 			tl(10); assert.equal(obj.a, '17 5 12'); assert.equal(obj.b, '23 #ff0');
 			tl(15); assert.equal(obj.a.replace(/\.\d+/g, ''), '9 7 16'); assert.equal(obj.b.replace(/\.\d+/g, ''), '21 rgb(255,255,127)');
 		});
+
+		it('supports show and hide', function() {
+			var d = EE('div', {id: 'xxxdiv', $display: 'none'});
+			$('body').add(d);
+			var tl = timeline([{show: '#xxxdiv', wait: 10}, 
+							   {hide: '#xxxdiv', wait: 10}
+							  ]);
+			assert.equal($('#xxxdiv').get('$$show'), 0);
+			tl(0); assert.equal($('#xxxdiv').get('$$show'), 1);
+			tl(17); assert.equal($('#xxxdiv').get('$$show'), 0);
+
+			d.remove();
+		});
+
 	});
 
 });
