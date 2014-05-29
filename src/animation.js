@@ -77,8 +77,11 @@ define('niagara-animation', function(require) {
     }
 
     // internal, for use in keyframe timelines
-    function singlePropSmoothDial(list, propertyName, propertyTemplate, startValues, startVelocity, endValues, endVelocity) {
+    function singlePropSmoothDial(listOrSelector, ctx, propertyName, propertyTemplate, startValues, startVelocity, endValues, endVelocity) {
+        var isSelector = _.isString(listOrSelector);
+        var mList = $(listOrSelector);
         return function(t) {
+            var list = isSelector ? $(listOrSelector, ctx) : mList;
             list.set(propertyName, setInterpolatables(propertyTemplate, 
                 _.map(startValues, function(start, valIndex) {
                     return interpolatePropValue(t, start, endValues[valIndex], startVelocity[valIndex], endVelocity[valIndex]);
@@ -464,7 +467,7 @@ define('niagara-animation', function(require) {
                                     veloStart = v;
                                 propEntry.item.tNoDeactivation = true;
                             }
-                            var newItem = {tStart: propEntry.kf.tStart, tDuration: tDuration, tTarget: $(kfTarget, ctx), 
+                            var newItem = {tStart: propEntry.kf.tStart, tDuration: tDuration, tTarget: kfTarget, 
                                 tPropName: propName, tPropTemplate: propValueS, tFrom: propEntry.values, tTo: newValues,
                                 tVeloStart: veloStart, tVeloEnd: veloEnd, 
                                 tVeloStartUserSet: veloStartUserSet, tVeloEndUserSet: veloEndUserSet,
@@ -516,11 +519,11 @@ define('niagara-animation', function(require) {
                                 tBlockingEnd: it.tStart, tBackForth: 1, tDurationPerRun: it.tDuration, tForward: true, tBackward: true, tContent: true
                         };
                         if (itemList.length == 1) {
-                            newItem.dial = singlePropSmoothDial(it.tTarget, it.tPropName, it.tPropTemplate, it.tFrom, it.tVeloStart, it.tTo, it.tVeloEnd);
+                            newItem.dial = singlePropSmoothDial(it.tTarget, ctx, it.tPropName, it.tPropTemplate, it.tFrom, it.tVeloStart, it.tTo, it.tVeloEnd);
                         }
                         else {
                             var dialList = _.map(it, function(item) {
-                                return singlePropSmoothDial(it.tTarget, it.tPropName, it.tPropTemplate, it.tFrom, it.tVeloStart, it.tTo, it.tVeloEnd);
+                                return singlePropSmoothDial(it.tTarget, ctx, it.tPropName, it.tPropTemplate, it.tFrom, it.tVeloStart, it.tTo, it.tVeloEnd);
                             });
                             newItem.dial = createDialListFunc(dialList); // external func to prevent closure
                         }
