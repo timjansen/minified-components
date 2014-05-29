@@ -383,6 +383,22 @@ describe('Animation module', function() {
 			a3.check();
 		});
 
+		it('supports show and hide', function() {
+			var container = EE('div');
+			var d = EE('div', {$: 'xxxdiv', $display: 'none'});
+			$('body').add(container.add(d));
+			var decoy = EE('div', {$: 'xxxdiv', $display: 'none'});
+			$('body').add(decoy);
+
+			var tl = timeline(container, [{show: '.xxxdiv', wait: 10}, {hide: '.xxxdiv', wait: 10} ]);
+			assert.equal(d.get('$$show'), 0);
+			tl(0); assert.equal(d.get('$$show'), 1); assert.equal(decoy.get('$$show'), 0);
+			tl(17); assert.equal(d.get('$$show'), 0);
+
+			container.remove();
+			decoy.remove();
+		});
+
 		it('allows simple keyframes', function() {
 			var obj = {a: 0};
 			var tl = timeline([{keyframe: obj, props: {a: 1}, wait: 10},
@@ -532,7 +548,7 @@ describe('Animation module', function() {
 			tl(36); assertFloat(obj.a, smoothInterpolator(30, 25, 0.6, 1, 0));
 		});
 
-		it('supports auto-props', function() {
+		it('supports keyframe auto-props', function() {
 			var obj = {a: '4 2 3', b: '23 #ff0'};
 			var tl = timeline([{keyframe: obj, auto: ['a'], wait: 10},
 							   {keyframe: obj, props: {a: '17 5 12'}, auto: ['b'], wait: 10},
@@ -544,22 +560,26 @@ describe('Animation module', function() {
 			tl(15); assert.equal(obj.a.replace(/\.\d+/g, ''), '9 7 16'); assert.equal(obj.b.replace(/\.\d+/g, ''), '21 rgb(255,255,127)');
 		});
 
-		it('supports show and hide', function() {
+
+		it('executes keyframe selector in context at runtime', function() {
 			var container = EE('div');
-			var d = EE('div', {$: 'xxxdiv', $display: 'none'});
+			var d2, d = EE('div', {$: 'xxxdiv'});
 			$('body').add(container.add(d));
-			var decoy = EE('div', {$: 'xxxdiv', $display: 'none'});
+			var decoy = EE('div', {$: 'xxxdiv', $width: '11px'});
 			$('body').add(decoy);
 
-			var tl = timeline(container, [{show: '.xxxdiv', wait: 10}, {hide: '.xxxdiv', wait: 10} ]);
-			assert.equal(d.get('$$show'), 0);
-			tl(0); assert.equal(d.get('$$show'), 1); assert.equal(decoy.get('$$show'), 0);
-			tl(17); assert.equal(d.get('$$show'), 0);
+			var tl = timeline(container, [{keyframe: '.xxxdiv', props: {$width: '5px'}, wait: 10},
+										  {keyframe: '.xxxdiv', props: {$width: '20px'}, wait: 10},
+										  {keyframe: '.xxxdiv', props: {$width: '55px'}, wait: 10}]);
+			tl(3); assertFloat(d.get('$width', true), 8); assert.equal(decoy.get('$width', true), 11);
+			$('body').add(container.add(d2 = EE('div', {$: 'xxxdiv'})));
+			tl(5);  assertFloat(d.get('$width', true), 12); assertFloat(d2.get('$width', true), 12); assert.equal(decoy.get('$width', true), 11);
+			tl(7);  assertFloat(d.get('$width', true), 16); assertFloat(d2.get('$width', true), 16); assert.equal(decoy.get('$width', true), 11);
+			tl(12); assertFloat(d.get('$width', true), 23); assertFloat(d2.get('$width', true), 23); assert.equal(decoy.get('$width', true), 11);
 
 			container.remove();
 			decoy.remove();
 		});
-
 
 
 	});
