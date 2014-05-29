@@ -284,19 +284,6 @@ define('niagara-animation', function(require) {
     var ease = _.extend(constructedEases,  functionEases);
 
 
-	// TODO: keyframe anim
-	// two elements:
-	//      To create smooth anim:
-	//
-	//
-	// '#elem' can be anything allowed by $()
-	// props are regular set() names
-	// wait can be used, optional.
-	// base impl on smoothDial() with velocity and dial() without
-	// multi-property animation in keyframes (something like <rect transform="rotate(0 30 30)"> to <rect transform="rotate(45 100 100)">)
-
-
-
      // Creates a flexible timeline of events, toggles and animations. It does no impose any specific definition of time - it is suggested to use
      // it with milliseconds, but you could for example also control the time by the y scroll coordinate (see examples).
      //
@@ -320,16 +307,20 @@ define('niagara-animation', function(require) {
      //     {show: '#invisible', hide: '#visible'},                                   // shows/hides elements using show()/hide(). Can be used everywhere.
      //     // execute several items in parallel. Blocks until all blocking items are done.
      //     [{dial: $('#h').dial({$fade:0},{$fade:1}), wait: 500}, {toggle: $('#i').toggle({$fade:0},{$fade:1}, 100), wait: 2000},]: $('#h').dial({$fade:0},{$fade:1}), wait: 500}, {toggle: $('#i').toggle({$fade:0},{$fade:1}, 100), wait: 2000}],
-     //           {keyframe: '#elem', props: {'@x': 34}, wait: 50},                      // keyframe animation: animates x to 34. Uses auto-smooth. Next step in 50.
-     //           {keyframe: '#elem', props: {'@x': 55}, start: 61},                     // keyframe animation: absolute positioning.
-     //           {keyframe: '#elem', props: {'@x': 30}, linear: true, wait: 10},        // animates x to 30. Linear anim. Next step in 10.
-     //           {keyframe: '#elem', props: {'@x': 50}, velocity: {'@x': 2}, wait: 50}, // animates x to 50. Has given velocity at this keyframe. Next step in 50.
-     //           {keyframe: '#elem', props: {'@x': 10}, velocityBefore: {'@x': -2}, velocityAfter: {'@x': 2}, wait: 50}, // animates x to 10. Velocity changes from -2 to 2 instantly.
-     //           {keyframe: '#elem', auto: ['@x'], wait: 50},                           // Uses the initial value for @x as key frame instead of value in props.
-     //           {keystop: '#elem', props: {'@x': 100}}                                 // same as {keyframe: '#elem', props: {'@x': 10}, velocity: {'@x': 0}},
-
+     //     {keyframe: '.elem', props: {'@x': 34}, wait: 50},                      // keyframe animation: animates x to 34. Uses auto-smooth. Next step in 50.
+     //     {keyframe: '.elem', props: {'@x': 55}, start: 61, wait: 10},           // keyframe animation: absolute positioning. Next element in 10.
+     //     {keyframe: '.elem', props: {'@x': 30}, linear: true, wait: 10},        // animates x to 30. Linear anim. Next step in 10.
+     //     {keyframe: '.elem', props: {'@x': 50}, velocity: {'@x': 2}, wait: 50}, // animates x to 50. Has given velocity at this keyframe. Next step in 50.
+     //     {keyframe: '.elem', props: {'@x': 10}, velocityBefore: {'@x': -2}, velocityAfter: {'@x': 2}, wait: 50}, // animates x to 10. Velocity changes from -2 to 2 instantly.
+     //     {keyframe: '#elem', auto: ['@x'], wait: 50},                           // Uses the initial value for @x as key frame instead of value in props.
+     //     {keystop: '.elem', props: {'@x': 100}},                                // same as {keyframe: '#elem', props: {'@x': 10}, velocity: {'@x': 0}},
+     //     {add: function(ctx) { return EE('div', {$:'myBlock'}); }},             // adds the element to the context at the given time
+     //     {add: HTML('<div class="myBlock'></div>}),                             // adds the element to the context at the given time
+     //     {remove: '.myBlock'}                                                   // removed the element(s) at the time
      // ]
      //
+     // Each entry can have only either keyframe, dial, toggle, loop, timeline or callback. 
+     // show, hide, add and remove can be combined with any of the elements above and with each other, but will also work stand-alone.
      // repeat, repeatMs and backAndForth are only allowed for dial.
      //
      // Returns a timeline function <code>function(t, stop)</code>:
@@ -383,7 +374,7 @@ define('niagara-animation', function(require) {
                     tDuration: tDuration, // null if infinite
                     tForward: e.forward == null ? true : e.forward,
                     tBackward: e.backward == null ? true : e.backward,
-                    tContent: !!(e.loop || e.timeline || e.dial || e.toggle || e.callback || e.show || e.hide),
+                    tContent: !!(e.loop || e.timeline || e.dial || e.toggle || e.callback || e.show || e.hide || e.add || e.remove),
                     tKeyFrame: !!(e.keyframe || e.keystop),
                     tNoDeactivation: !!e.loop,
                     tNoDeactivationBack: !!e.loop
@@ -535,7 +526,7 @@ define('niagara-animation', function(require) {
             return optimizedItems;
         }
 
-        // make td a flat list of items, with additional t* properties
+        // make td a flat list of items, with additional t* properties 
         var endOfTimeline = 0;
         var prevBlockingEnd = 0;
         var keyframeItems = [];
@@ -545,8 +536,8 @@ define('niagara-animation', function(require) {
                 prevBlockingEnd = r.tBlockingEnd;
                 if (r.tKeyFrame) {
                     keyframeItems.push(r);
-                    if (r.show || r.hide)
-                        return {show: r.show, hide: r.hide, tStart: r.tStart, tDuration: 0};
+                    if (r.show || r.hide || r.add || r.remove) 
+                        return {show: r.show, hide: r.hide, add: r.add, remove: r.remove, tStart: r.tStart, tDuration: 0, tForward: true, tBackward: true};
                     else
                         return null;
                 }
@@ -594,7 +585,6 @@ console.log(eventTimeline);
                 return backward ? (t0 < tSpanLast && t0 >= tSpanNow) : (t0 > tSpanLast && t0 <= tSpanNow);
             }
 
-
             (backward ? reverseTimeline : eventTimeline).each(function(event, index) {
                 var item = event.item;
                 var relT = tSpanNow - item.tStart;
@@ -604,7 +594,14 @@ console.log(eventTimeline);
                 var itemIsRunnable = item.loop || item.dial || item.tTimeline; 
                 var itemInProgress = itemIsRunnable && itemDuration > 0 && t >= item.tStart && t < itemEnd;
                 var eventInTimeSpan = isInTimeSpan(event.time);
+                var jumpedOverEvent = backward ? isInTimeSpan(item.tStart) : isInTimeSpan(itemEnd);
                 if (eventInTimeSpan) {
+                    if (item.add && !backward) {
+                        $(ctx).add(item.tAddedElements = (_.isFunction(item.add) ? item.add(ctx) : item.add));
+console.log('added ', item.tAddedElements, ' at ', t);
+                    }
+                    if (item.remove && backward)
+                        $(ctx).add(item.tRemovedElements);
                     if (item.show && !backward)
                         $(item.show, ctx).show();
                     if (item.hide && backward)
@@ -612,11 +609,11 @@ console.log(eventTimeline);
 
                     if (!itemInProgress && !(backward ? item.tNoDeactivationBack : item.tNoDeactivation)) {
                         if (event.forwardActive) {
-                            if (item.toggle && !(backward ? isInTimeSpan(item.tStart) : isInTimeSpan(itemEnd)))
+                            if (item.toggle && !jumpedOverEvent)
                                 item.toggle(true);
                             if (item.callback)
                                 item.callback(tSpanNow, !backward);
-                        }
+                        } 
                         else {
                             if (item.toggle)
                                 item.toggle(false);
@@ -653,10 +650,14 @@ console.log(eventTimeline);
                         item.tTimeline(relT);
                 }
                 if (eventInTimeSpan) {
-                    if (item.hide && !backward)
+                    if (item.hide && !backward && event.forwardActive)
                         $(item.hide, ctx).hide();
                     if (item.show && backward)
                         $(item.show, ctx).hide();
+                    if (item.remove && !backward)
+                        (item.tRemovedElements = $(item.remove)).remove();
+                    if (item.add && backward)
+                        $(item.tAddedElements).remove();
                 }
             });
 

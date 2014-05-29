@@ -571,16 +571,43 @@ describe('Animation module', function() {
 			var tl = timeline(container, [{keyframe: '.xxxdiv', props: {$width: '5px'}, wait: 10},
 										  {keyframe: '.xxxdiv', props: {$width: '20px'}, wait: 10},
 										  {keyframe: '.xxxdiv', props: {$width: '55px'}, wait: 10}]);
-			tl(3); assertFloat(d.get('$width', true), 8); assert.equal(decoy.get('$width', true), 11);
+			tl(3); assertFloat(d.get('$width', true), 8, 1); assert.equal(decoy.get('$width', true), 11);
 			$('body').add(container.add(d2 = EE('div', {$: 'xxxdiv'})));
-			tl(5);  assertFloat(d.get('$width', true), 12); assertFloat(d2.get('$width', true), 12); assert.equal(decoy.get('$width', true), 11);
-			tl(7);  assertFloat(d.get('$width', true), 16); assertFloat(d2.get('$width', true), 16); assert.equal(decoy.get('$width', true), 11);
-			tl(12); assertFloat(d.get('$width', true), 23); assertFloat(d2.get('$width', true), 23); assert.equal(decoy.get('$width', true), 11);
+			tl(5);  assertFloat(d.get('$width', true), 12, 1); assertFloat(d2.get('$width', true), 12, 1); assert.equal(decoy.get('$width', true), 11);
+			tl(7);  assertFloat(d.get('$width', true), 16, 1); assertFloat(d2.get('$width', true), 16, 1); assert.equal(decoy.get('$width', true), 11);
+			tl(12); assertFloat(d.get('$width', true), 23, 1); assertFloat(d2.get('$width', true), 23, 1); assert.equal(decoy.get('$width', true), 11);
 
 			container.remove();
 			decoy.remove();
 		});
 
+		it('supports add', function() {
+			var container = EE('div');
+			var d1, d2, callCount = 0;
+			$('body').add(container);
+			var tl = timeline(container, [{wait: 10}, 
+										  {add: function(ctx) { callCount++; return d1 = EE('div', {$: 'd'}); }, 
+										   keyframe: '.d', props: {$width: '5px'}, wait: 10},
+										  {add: d2 = EE('div', {$: 'd d2'}),
+										   keyframe: '.d', props: {$width: '15px'}, wait: 20},
+										  {keyframe: '.d', props: {$width: '55px'}, wait: 10},
+										  {keyframe: '.d', props: {$width: '75px'}, wait: 10}]);
+			tl(5); assert.equal($('.d', container).length, 0);
+			tl(10); assert.equal(callCount, 1);
+			assert.equal($('.d', container).length, 1); 
+			tl(11); assertFloat(d1.get('$width', true), 5, 1); assert.equal($('.d', container).length, 1); 
+			tl(27); assertFloat(d1.get('$width', true), 26, 1); assertFloat(d2.get('$width', true), 26, 1); assert.equal($('.d', container).length, 2); 
+			tl(33); assert.equal($('.d', container).length, 2); assertFloat(d1.get('$width', true), 43, 1); assertFloat(d2.get('$width', true), 43, 1);
+			tl(43); assertFloat(d1.get('$width', true), 59, 1); assertFloat(d2.get('$width', true), 59, 1); 
+			tl(35); assert.equal($('.d', container).length, 2); assertFloat(d1.get('$width', true), 48, 1); assertFloat(d2.get('$width', true), 48, 1); 
+			tl(25); assert.equal($('.d', container).length, 2); assertFloat(d1.get('$width', true), 21, 1); assertFloat(d2.get('$width', true), 21, 1);
+			tl(5); assert.equal($('.d', container).length, 0);
+			tl(15); assert.equal($('.d', container).length, 1); assert.equal(callCount, 2);
+			container.remove();
+		});
+
+
+	// TODO: test remove
 
 	});
 
