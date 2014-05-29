@@ -606,9 +606,19 @@ describe('Animation module', function() {
 			container.remove();
 		});
 
-
-	// TODO: test remove
-
+		it('supports remove', function() {
+			var container = EE('div');
+			$('body').add(container);
+			var tl = timeline(container, [{add: EE('div', {$: 'd d2'}), wait: 10},
+										  {remove: '.d', wait: 10}]);
+			tl(0); assert.equal($('.d', container).length, 1);
+			tl(5); assert.equal($('.d', container).length, 1);
+			tl(10); assert.equal($('.d', container).length, 0);
+			tl(15); assert.equal($('.d', container).length, 0);
+			tl(5); assert.equal($('.d', container).length, 1);
+			tl(0); assert.equal($('.d', container).length, 0);
+			container.remove();
+		});
 	});
 
 });
