@@ -315,8 +315,9 @@ define('niagara-animation', function(require) {
      //     {keyframe: '#elem', auto: ['@x'], wait: 50},                           // Uses the initial value for @x as key frame instead of value in props.
      //     {keystop: '.elem', props: {'@x': 100}},                                // same as {keyframe: '#elem', props: {'@x': 10}, velocity: {'@x': 0}},
      //     {add: function(ctx) { return EE('div', {$:'myBlock'}); }},             // adds the element to the context at the given time
-     //     {add: HTML('<div class="myBlock'></div>}),                             // adds the element to the context at the given time
-     //     {remove: '.myBlock'}                                                   // removed the element(s) at the time
+     //     {add: HTML('<div class="myBlock'></div>}),                             // adds the element to the context at the given time. Null/empty list to not add anything.
+     //     {remove: '.myBlock'},                                                  // removed the element(s) at the time
+     //     {remove: function(ctx) { return $('.myBlock').only(3);}},              // uses a function to determine the element(s). Return null or empty list to not delete anything.
      // ]
      //
      // Each entry can have only either keyframe, dial, toggle, loop, timeline or callback. 
@@ -564,7 +565,6 @@ define('niagara-animation', function(require) {
         var eventTimeline = td.collect(_.partial(createTimeEvent, [true])).sort(function(a, b) { return a.time - b.time; });
         var reverseTimeline = td.collect(_.partial(createTimeEvent, [false])).sort(function(a, b) { return b.time - a.time; });
 
-console.log(eventTimeline);
        
         var lastT = null;
         return function(t, stop) {
@@ -596,10 +596,8 @@ console.log(eventTimeline);
                 var eventInTimeSpan = isInTimeSpan(event.time);
                 var jumpedOverEvent = backward ? isInTimeSpan(item.tStart) : isInTimeSpan(itemEnd);
                 if (eventInTimeSpan) {
-                    if (item.add && !backward) {
+                    if (item.add && !backward)
                         $(ctx).add(item.tAddedElements = (_.isFunction(item.add) ? item.add(ctx) : item.add));
-console.log('added ', item.tAddedElements, ' at ', t);
-                    }
                     if (item.remove && backward)
                         $(ctx).add(item.tRemovedElements);
                     if (item.show && !backward)
@@ -655,7 +653,7 @@ console.log('added ', item.tAddedElements, ' at ', t);
                     if (item.show && backward)
                         $(item.show, ctx).hide();
                     if (item.remove && !backward)
-                        (item.tRemovedElements = $(item.remove)).remove();
+                        (item.tRemovedElements = $(_.isFunction(item.remove) ? item.remove(ctx) : item.remove)).remove();
                     if (item.add && backward)
                         $(item.tAddedElements).remove();
                 }
