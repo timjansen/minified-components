@@ -12,9 +12,8 @@ define('touchScroll' , function(require) {
 	var touchMover = niaUI.touchMover;
 	var isSvgPossible = niaUI.isSvgPossible;
 	var toPx = niaUI.toPx;
-	var isFullscreenPossible = niaUI.isFullscreenPossible;
-	var setFullscreen = niaUI.setFullscreen;
-	var exitFullscreen = niaUI.exitFullscreen;
+	var isMaximizePossible = niaUI.isMaximizePossible;
+	var maximize = niaUI.maximize;
 	var createToggle = niaUI.createToggle;
 	var SEE = niaUI.SEE;
 
@@ -29,11 +28,12 @@ define('touchScroll' , function(require) {
 	//   scrollAlways: false,           // if set true, touch scrolling is supported even when content fits
 	//   showInstructions: true,        // if true, show a touch animation to explain how to use this. default: true
 	//   instructionParams: {src: '/img/touch-anim.svg', width: 110, height: 100},  // use your own image or animation here.  width/height as number in px
-	//   showFullscreenButton: true,    // if true, shows a fullscreen button in the lower right corner. Default: true if browser supports fullscreen.
-	//   fullscreenButtonOn: null,      // if set, either the URL of a fullscreen button image to show while NOT in fullscreen, or a button to clone. 
-	//                                     Optionally the URL is followed by width and height, comma-separated. Default is the built-in button.
-	//   fullscreenButtonOff: null,     // if set, either the URL of a fullscreen button image to show while in fullscreen, or a button to clone. Default is the same as 
-	//                                     fullscreenButtonOn button.
+	//   showMaximizeButton: true,      // if true, shows a maximize button in the lower right corner. Default: true if browser supports maximization.
+	//   maximizeButton: null,          // if set, either the URL of a maximize button image to show while NOT maximized, or a button to clone. 
+	//                                  // Optionally the URL is followed by width and height, comma-separated. Default is the built-in button.
+	//   unmaximizeButton: null,        // if set, either the URL of a maximize button image to show while maximized, or a button to clone. Default is the same as 
+	//                                  // maximizeButton button.
+	//   showFullScreen: false			// Use fullscreen mode if possible when maximized. Default: false.
 	// } 
 	// 
 	// Returns: {
@@ -52,10 +52,10 @@ define('touchScroll' , function(require) {
 	//   move: function(dx, dy, t)            // Changes position by dx/dy. Clipped. Optionally animated, duration t ms
 	//   moveTo: function(x, y, t)            // Moves to position. Optionally animated, duration t ms
 	//   changeContent: function(content, x, y) // replaces current content with given element. Optionally position to x/y (default centers)
-	//   position: function()                 // returns object {x: 0, y: 0, vx: 0, vy: 0, w: 0, h: 0, viewW: 0, viewH: 0}
+	//   position: function(),                // returns object {x: 0, y: 0, vx: 0, vy: 0, w: 0, h: 0, viewW: 0, viewH: 0}
 	//                                        // with position (x/y), current velocity in px/s (vx/vy), content size (w/h) and view size (viewW/viewH)
-    //	 changeViewSize: function(w, h)       // call when you modify view size
-    //	 toggleFullscreen: function(tog)      // toggle function to enable/disable fullscreen
+    //	 changeViewSize: function(w, h),      // call when you modify view size
+    //	 toggleMaximize: function(tog)        // toggle function to enable/disable fullscreen
 	//}
 
 	function touchScroll(parent, content, options) {
@@ -74,8 +74,7 @@ define('touchScroll' , function(require) {
 		var ph = parent.get('clientHeight', true);
 
 		var instructions; // element list to remove or null
-		var preFullscreenSize; // stores width/height during fullscreen
-		var fullscreenButton; // current fullscreen button or null
+		var preMaximizeSize; // stores width/height during fullscreen
 
 		var touchStartED = createEventDispatcher(parent);
 		var touchMoveED = createEventDispatcher(parent);
@@ -83,7 +82,7 @@ define('touchScroll' , function(require) {
 		var movementStartED = createEventDispatcher(parent);
 		var movementEndED = createEventDispatcher(parent);
 		var clickED = createEventDispatcher(parent);
-		var fullscreenED = createEventDispatcher(parent);
+		var maximizeED = createEventDispatcher(parent);
 		var changeED = createEventDispatcher(parent);
 
 		var opts = options || {};
@@ -96,9 +95,10 @@ define('touchScroll' , function(require) {
 		var axisY = axis != 'x' && (scrollAlways || ph<h);
 		var showInstructions = getBool(opts.showInstructions, true);
 		var instructionParams = opts.instructionParams || {src: '/img/touch-anim.svg', width: 110, height: 100};
-		var showFullscreenButton = getBool(opts.showFullscreenButton, isFullscreenPossible());
-		var fullscreenButtonOn = opts.fullscreenButtonOn;
-		var fullscreenButtonOff = opts.fullscreenButtonOff;
+		var showMaximizeButton = getBool(opts.showMaximizeButton, isMaximizePossible());
+		var maximizeButton = opts.maximizeButton;
+		var unmaximizeButton = opts.unmaximizeButton;
+		var showFullScreen = opts.showFullScreen;
 
 		if (_.isString(initialPosition))
 			initialPosition = {x: parseFloat(initialPosition.replace(/,.*/, '')), y: parseFloat(initialPosition.replace(/.*,/, ''))};
@@ -109,21 +109,21 @@ define('touchScroll' , function(require) {
 			instructionParams = {src: ia[0], width: parseFloat(ia[1]), height: parseFloat(ia[2])};
 		}
 
-		function createFsButton(str) {
+		function createMaximizeButton(str) {
 			var fsb = str.split(/\s*,\s*/);
 			return EE('button', {$backgroundColor: 'transparent', $border: 0}, 
 				EE('img', {'@src': fsb[0], '@width': fsb[1], '@height': fsb[2]}));
 		}
-		if (_.isString(fullscreenButtonOn)) 
-			fullscreenButtonOn = createFsButton(fullscreenButtonOn);
-		else if (fullscreenButtonOn)
-			fullscreenButtonOn = $(fullscreenButtonOn);
-		if (_.isString(fullscreenButtonOff)) 
-			fullscreenButtonOff = createFsButton(fullscreenButtonOff);
-		else if (fullscreenButtonOff)
-			fullscreenButtonOff = $(fullscreenButtonOff);
-		else if (fullscreenButtonOn)
-			fullscreenButtonOff = fullscreenButtonOn;
+		if (_.isString(maximizeButton)) 
+			maximizeButton = createMaximizeButton(maximizeButton);
+		else if (maximizeButton)
+			maximizeButton = $(maximizeButton);
+		if (_.isString(unmaximizeButton)) 
+			unmaximizeButton = createMaximizeButton(unmaximizeButton);
+		else if (unmaximizeButton)
+			unmaximizeButton = $(unmaximizeButton);
+		else if (maximizeButton)
+			unmaximizeButton = maximizeButton;
 		
 
 		parent.set({$overflow: 'hidden'});
@@ -240,19 +240,17 @@ define('touchScroll' , function(require) {
 				moveToInternal(cx + pw/2, cy + ph/2, true);
 		}
 
-		
 
- 		var toggleFullscreen = createToggle(exitFullscreen, function() {
-			preFullscreenSize = parent.get(['$width', '$height'])
-			setFullscreen(parent, function fullscreenHandler(tog) {
-				if (tog)
-					parent.set({$width: '100%', $height: '100%'});
-				else
-					parent.set(preFullscreenSize);
-				toggleFullscreen.override(tog);
-				changeViewSize();
-				fullscreenED(tog);
-			});
+		var maximizeStopFunc;
+ 		var toggleMaximize = createToggle(function() {
+ 				if (maximizeStopFunc)
+ 					maximizeStopFunc();
+ 			}, function() {
+			maximizeStopFunc = maximize(parent, function maximizationHandler(tog) {
+				toggleMaximize.override(tog);
+	  			changeViewSize();
+				maximizeED(tog);
+			}, showFullScreen);
 		});
 
 		var tmv = touchMover(parent, options);
@@ -331,10 +329,9 @@ define('touchScroll' , function(require) {
 			touchEndED();
 		});
 
-
-		if (showFullscreenButton) {
+		if (showMaximizeButton) {
 			var button;
-			if (!fullscreenButtonOn || !fullscreenButtonOff) {
+			if (!maximizeButton || !unmaximizeButton) {
 				var svgOff = SEE('svg', {'@width': 32, '@height': 32, '@viewBox': '0 0 180 180'},
 					SEE('g', [
 						SEE('rect', {'@x': 0, '@y': 0, '@width': 180, '@height': 15, '@fill': '#fff'}),
@@ -349,28 +346,28 @@ define('touchScroll' , function(require) {
 				svgOn.select('path').set({'@d': 'M20,25l10,-10l35,35l20,-20l0,60l-60,0l20,-20l-35,-35z'});
 				svgOn.select('g').add(svgOn.select('path').clone().set({'@d': 'M155,155l-10,10l-35,-35l-20,20l0,-60l60,0l-20,20l35,35z'}));
 
-				var fsButtonStyle = {$backgroundColor: 'transparent', $border: 0};
-				if (!fullscreenButtonOn)
-					fullscreenButtonOn = EE('button', fsButtonStyle, svgOn);
-				if (!fullscreenButtonOff)
-					fullscreenButtonOff = EE('button', fsButtonStyle, svgOff);
+				var maxiButtonStyle = {$backgroundColor: 'transparent', $border: 0};
+				if (!maximizeButton)
+					maximizeButton = EE('button', maxiButtonStyle, svgOn);
+				if (!unmaximizeButton)
+					unmaximizeButton = EE('button', maxiButtonStyle, svgOff);
 			}
 
-			var buttons = _(fullscreenButtonOff, fullscreenButtonOn);
+			var buttons = _(unmaximizeButton, maximizeButton);
 			function positionButton(onOff) {
 				if (button)
 					button.remove();
 				var dist = Math.round(Math.min(pw, ph)*0.05);
 				parent.add(button = buttons.only(+onOff).clone()
-														.set({$position: 'absolute', $right: dist+'px', $bottom: dist+'px'})
-														.onClick(toggleFullscreen)
-														.per(function(b) {
+												.set({$position: 'absolute', $right: dist+'px', $bottom: dist+'px'})
+												.onClick(toggleMaximize)
+												.per(function(b) {
 					if (b.select('.svgFsButtonBg').length)
 						b.onOver(b.select('.svgFsButtonBg').toggle({'@fill': '#000'}, {'@fill': '#999'}, 150, 1));
 				}));
 			}
 			positionButton(false);
-			fullscreenED.on(positionButton);
+			maximizeED.on(positionButton);
 		}
 
 		if (showInstructions && (isSvgPossible() || !/\.svg$/.test(instructionParams.src))) {
@@ -389,10 +386,10 @@ define('touchScroll' , function(require) {
 			onMovementEnd: movementEndED.on, offMovementEnd: movementEndED.off,
 			onClick: clickED.on, offClick: clickED.off,
 			onChange: changeED.on, offChange: changeED.off, 
-			onFullscreen: fullscreenED.on, offFullscreen: fullscreenED.off,
+			onMaximize: maximizeED.on, offMaximize: maximizeED.off,
 			move: move, moveTo: moveTo, getModel: getModel, changeContent: changeContent,
-			changeViewSize: changeViewSize, toggleFullscreen: toggleFullscreen
-		};
+			changeViewSize: changeViewSize, toggleMaximize: toggleMaximize
+  		};
 	}
 
 	$(function() {

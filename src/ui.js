@@ -269,6 +269,35 @@ define('niagara-ui', function(require) {
 		return (_.isList(attributes) || (attributes != null && !_.isObject(attributes)) ) ? e.add(attributes) : e.set(attributes).add(children);
 	}
 
+
+	// throttled notification of window resize events
+	function onResizeWindow(handler) {
+    	var pending = false;
+		var loopRunning;
+     
+		function resizeLoop(t, stop) {
+			if (!pending) {
+				stop();
+				loopRunning = null;
+			}
+			else
+				handler();
+			pending = false;
+		}
+
+		function eventHandler() {
+			if (pending)
+				return;
+			pending = true;
+			if (!loopRunning)
+			loopRunning = $.loop(resizeLoop);
+		}
+
+		$(window).on('|resize', eventHandler);
+		return eventHandler;
+	}
+
+
   	// returns true if fullscreen is possible, false if not possible at the moment, or null if not possible at all
   	function isFullscreenPossible(el) {
   		return _('fullscreenEnabled', 'mozFullScreenEnabled', 'webkitFullscreenEnabled', 'msFullscreenEnabled').find(function(name) {
@@ -315,6 +344,74 @@ define('niagara-ui', function(require) {
 		if (name)
 			document[name]();
 	}
+
+
+	function isMaximizePossible() {
+		var el = EE('div', {$position: 'fixed'});
+		$('body').add(el);
+		return el.get('$position') == 'fixed';
+	}
+
+	// Maximizes the given element to use the whole browser screen, optionally in fullscreen mode.
+	//
+	// Please note that fullscreen mode will not be entered immediately and your control over it is limited.
+	// The user may leave fullscreen on her own. Use the onChange callback to be notified when the fullscreen
+	// mode has been established or when the user leaves it. onChange may also important in case the browser
+	// window's size changes (typically when the user changes the browser window manually on a desktop system, or caused
+	// by an orientation change on hand-held devices).
+	// onChange syntax: function(w, h, isMaximized, isFullscreen)
+	// Returns a stop() function to call when you want to unmaximize. stop() will also cause one final onChange() invokation.
+	//  onChange() is a callback.
+	function maximize(el, onChange, useFullscreen) {
+		var tryFullscreen = useFullscreen && isFullscreenPossible();
+		var resizeHandler;
+		var active = true, inFullscreen = false, stopped = false;
+		var e = $(el).only(0);
+		var oldProps = el.get(['$position', '$display', '$width', '$height', '$top', '$left', '$zIndex']);
+		el.set({$position: 'fixed', $display: 'block', $width: '100%', $height: '100%', $top: 0, $left: 0, $zIndex: 10000});
+
+		
+		function stateChange(isMaximized) {
+			if (active) {
+				active = isMaximized;
+				if (!isMaximized) {
+					el.set(oldProps);
+					$.off(resizeHandler);
+				}
+				onChange && onChange(isMaximized, window.innerWidth || document.body.clientWidth, window.innerHeight || document.body.clientHeight);
+			}
+		}
+ 
+		if (tryFullscreen)
+			setFullscreen(el, function (fs) {
+				if (fs && stopped) // if stop() called before pending fullscreen is ready, exit immediately
+					exitFullscreen();
+				else
+					stateChange(inFullscreen = fs);
+			});
+	
+		$.loop(function(t, stop) { // send onChange in loop(), hoping this may minimize the number of events
+			if (!inFullscreen)
+				stateChange(true);
+			stop();
+		});
+
+		resizeHandler = onResizeWindow(function() {
+			stateChange(true);
+		});
+
+		return function() {
+			if (!stopped) {
+				stopped = true;
+				if (inFullscreen)
+					exitFullscreen();
+				else
+					stateChange(false);
+			}
+		};
+	}
+
+
 
 	function createCustomButton(content, basicStyling, onStateChange) {
 		var button = EE('button', basicStyling, content);
@@ -436,6 +533,8 @@ define('niagara-ui', function(require) {
 		SEE: SEE,
 		isFullscreenPossible: isFullscreenPossible,
 		setFullscreen: setFullscreen,
-		exitFullscreen: exitFullscreen
+		exitFullscreen: exitFullscreen,
+		maximize: maximize, 
+		isMaximizePossible: isMaximizePossible
 	};
 });
