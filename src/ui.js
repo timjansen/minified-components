@@ -174,7 +174,7 @@ define('niagara-ui', function(require) {
 				stopMove();
 			var el = this;
 			var touch = ev.changedTouches ? ev.changedTouches[0] : ev;
-			var x0 = touch.screenX, y0 = touch.screenY;      // values at last mouse event
+			var x0 = touch.clientX, y0 = touch.clientY; // values at last mouse event
 			var t0 = +new Date();                       // time of the last event
 			var tStart = t0;                            // begin of the touch
 			var lastDx = [], lastDy = [], lastT = [];   // last vx/vy and t, up to velocitySamples
@@ -192,7 +192,7 @@ define('niagara-ui', function(require) {
 				}
 				else
 					touch = e;
-				var nx = touch.screenX, ny = touch.screenY,
+				var nx = touch.clientX, ny = touch.clientY,
 				    dx = nx-x0, dy = ny-y0, dt = Math.max(t - t0, 1);
 				if (dx||dy)
 					onMoveED(dx, dy);
