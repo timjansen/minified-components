@@ -1,7 +1,7 @@
 
 define('touchScroll' , function(require) {
-	var NIAGARA = require('minified'); 
-	var $ = NIAGARA.$, $$ = NIAGARA.$$, EE = NIAGARA.EE, _ = NIAGARA._;
+	var NIA = require('minified'); 
+	var $ = NIA.$, $$ = NIA.$$, EE = NIA.EE, _ = NIA._;
 
 	var niaUI = require('niagara-ui');
 	var createSmoothInterpolator = niaUI.createSmoothInterpolator;
@@ -240,6 +240,12 @@ define('touchScroll' , function(require) {
 				moveToInternal(cx + pw/2, cy + ph/2, true);
 		}
 
+		function removeInstructions() {
+			if (instructions) {
+				instructions.remove();
+				instructions = null;
+			}
+		}
 
 		var maximizeStopFunc;
  		var toggleMaximize = createToggle(function() {
@@ -251,15 +257,12 @@ define('touchScroll' , function(require) {
 	  			changeViewSize();
 				maximizeED(tog);
 			}, showFullScreen);
-		});
+		}, removeInstructions);
 
 		var tmv = touchMover(parent, options);
 		tmv.onClick(clickED);
 		tmv.onStart(function() {
-			if (instructions) {
-				instructions.remove();
-				instructions = null;
-			}
+			removeInstructions();
 			stopAnimation();
 			touchStartED();
 		});
@@ -334,17 +337,15 @@ define('touchScroll' , function(require) {
 			if (!maximizeButton || !unmaximizeButton) {
 				var svgOff = SEE('svg', {'@width': 32, '@height': 32, '@viewBox': '0 0 180 180'},
 					SEE('g', [
-						SEE('rect', {'@x': 0, '@y': 0, '@width': 180, '@height': 15, '@fill': '#fff'}),
-						SEE('rect', {'@x': 0, '@y': 165, '@width': 180, '@height': 15, '@fill': '#fff'}),
-						SEE('rect', {'@x': 0, '@y': 15, '@width': 15, '@height': 150, '@fill': '#fff'}),
-						SEE('rect', {'@x': 165, '@y': 15, '@width': 15, '@height': 150, '@fill': '#fff'}),
+						SEE('path', {'@d': 'M0,0l180,0l0,180l-180,0l0,-180 M15,15l150,0l0,150l-150,0l0,150', '@fill-rule': 'evenodd', '@fill': '#fff', '@opacity': '0.8'}),
 						SEE('rect', {'@class': 'svgFsButtonBg', '@x': 15, '@y': 15, '@width': 150, '@height': 150, '@fill': '#000', '@opacity': '0.5'}),
-						SEE('path', {'@stroke': '#000', '@stroke-width': 10, '@fill': '#fff',
-							'@d': 'M10,10 l60,0 l-20,20 l100,100 l20,-20 l0,60 l-60,0 l20,-20 l-100,-100 l-20,20 z'})
+						SEE('path', {'@stroke': '#000', '@stroke-width': 10, '@fill': '#fff', '@opacity': '0.8',
+							'@d': 'M10,10l60,0l-20,20l100,100l20,-20l0,60l-60,0l20,-20l-100,-100l-20,20 z'})
 					])); 
 				var svgOn = svgOff.clone();
-				svgOn.select('path').set({'@d': 'M20,25l10,-10l35,35l20,-20l0,60l-60,0l20,-20l-35,-35z'});
-				svgOn.select('g').add(svgOn.select('path').clone().set({'@d': 'M155,155l-10,10l-35,-35l-20,20l0,-60l60,0l-20,20l35,35z'}));
+				var arrowPath = svgOn.select('path').sub(-1);
+				arrowPath.set({'@d': 'M20,25l10,-10l35,35l20,-20l0,60l-60,0l20,-20l-35,-35z'});
+				svgOn.select('g').add(arrowPath.clone().set({'@d': 'M155,155l-10,10l-35,-35l-20,20l0,-60l60,0l-20,20l35,35z'}));
 
 				var maxiButtonStyle = {$backgroundColor: 'transparent', $border: 0};
 				if (!maximizeButton)
@@ -360,10 +361,12 @@ define('touchScroll' , function(require) {
 				var dist = Math.round(Math.min(pw, ph)*0.05);
 				parent.add(button = buttons.only(+onOff).clone()
 												.set({$position: 'absolute', $right: dist+'px', $bottom: dist+'px'})
-												.onClick(toggleMaximize)
 												.per(function(b) {
-					if (b.select('.svgFsButtonBg').length)
-						b.onOver(b.select('.svgFsButtonBg').toggle({'@fill': '#000'}, {'@fill': '#999'}, 150, 1));
+					var buttonBg = b.select('.svgFsButtonBg');
+					var tc = b.touchClicker();
+					tc.onClick(toggleMaximize);
+					if (buttonBg.length)
+						tc.onOver(buttonBg.toggle({'@fill': '#000'}, {'@fill': '#999'}, 150, 1));
 				}));
 			}
 			positionButton(false);

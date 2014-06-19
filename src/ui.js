@@ -95,10 +95,11 @@ define('niagara-ui', function(require) {
 		var handlers = [];
 		function trigger() {
 			if (handlers.length)
-				_.call(handlers, obj, arguments);
+				_.call(handlers, obj != null ? obj : this, arguments);
 		}
 		trigger.on = function(handler) {
-			handlers.push(handler);
+			if (handler)
+				handlers.push(handler);
 		};
 		trigger.off = function(handler) {
 			for (var i = 0; i < handlers.length; i++)
@@ -111,7 +112,7 @@ define('niagara-ui', function(require) {
 		return trigger;
 	}
 
-	function createToggle(f1, f2opt) {
+	function createToggle(f1, f2opt, fAlways) {
 		var f2 = f2opt || f1;
 		var state = false;
 		var toggle = function(tog) {
@@ -121,6 +122,8 @@ define('niagara-ui', function(require) {
 						f2(true);
 					else
 						f1(false);
+					if (fAlways) 
+						fAlways(state);
 				}
 				else
 					toggle(!state);
@@ -134,7 +137,8 @@ define('niagara-ui', function(require) {
 
 
 	function findTouch(touchEvent, id) {
-		return touchEvent.touches ? _.find(touchEvent.touches, function(t) {
+		var touchList = touchEvent.touches || touchEvent.changedTouches;
+		return touchList ? _.find(touchList, function(t) {
 			return t.identifier == id ? t : null;
 		}) : null;
 	}
@@ -216,7 +220,7 @@ define('niagara-ui', function(require) {
 				if (e) {
 					var relatedTarget = e['relatedTarget'] || e['toElement'];
 					if (e.type == 'mouseout' && 
-						($(relatedTarget).trav('parentNode', list[index]).length ||
+						($(relatedTarget).trav('parentNode', list[index]).length || // TODO: use isParentUI!
 						relatedTarget == list[index]))
 						return;
 					mouseMove(e);
@@ -254,9 +258,13 @@ define('niagara-ui', function(require) {
 			onStartED(ev);
 		}
 		
+		function off() {
+			$.off(start);
+		}
+
 		list.on('mousedown touchstart', start);
 
-		return {onStart: onStartED.on, onMove: onMoveED.on, onFinish: onFinishED.on, onClick: onClickED.on};
+		return {onStart: onStartED.on, onMove: onMoveED.on, onFinish: onFinishED.on, onClick: onClickED.on, off: off};
   	}
 
   	function isSvgPossible() {
@@ -495,28 +503,70 @@ define('niagara-ui', function(require) {
 		};
 	};
 
-	// TODO: touch events needed?
-	function onPressUI(subSelector, handler, unpressArg, pressArg) {
-		if (handler) {
-			var downStates = [];
-			return this.per(function(el, index) {
-				downStates[index] = false;
-				el.onOver(function(over) {
-					if (downStates[index] && !over)
-						handler.call(el, downStates[index] = false);
-				});
-			}).on('|mousedown |mouseup', function(e, index) {
-				var down = (e.type == 'mousedown');
-				if (downStates[index] != down)
-					handler.call(this, downStates[index] = down);
+	function onTouchClickUI(subSelector, clickHandler, args) {
+		if (_.isFunction(subSelector))
+			this.onTouchClickUI(null, subSelector, clickHandler);
+		else {
+			var list = subSelector ? this.select(subSelector) : this;
+			var touchClicker = list.touchClicker(true);
+			touchClicker.onClick(function() {
+				clickHandler.apply(this, args || []);
 			});
 		}
-		else
-			return this.onPressUI(null, subSelector);
-	};
+		return this;
+	}
+
+	function touchClicker(disableOver) {
+		var gotTouchEvents = false;
+		var clickED = createEventDispatcher();
+		var overED = createEventDispatcher();
+		this.onClick(clickED);
+		if (!disableOver)
+			this.onOver(overED);
+		this.on('touchstart', function(e) {
+			if (!gotTouchEvents) {
+				$.off(clickED);
+				$.off(overED);
+				gotTouchEvents = true;
+			}
+			if (!disableOver)
+				overED.call(this, true);
+			var id = e.changedTouches[0].identifier;
+			this.on('touchmove touchend touchcancel touchleave', function touchHandler(e) {
+				var touch = findTouch(e, id);
+				if (!touch && e.type != 'touchend')
+					return;
+
+				if (e.type == 'touchmove' && this.isParentUI(document.elementFromPoint(touch.pageX, touch.pageY), true))
+					return;
+				$.off(touchHandler);
+				if (!disableOver)
+					overED.call(this, false);
+				if (e.type == 'touchend')
+					clickED.call(this);
+			});
+		});
+		return {onOver: overED.on, offOver: overED.off, onClick: clickED.on, offClick: clickED.off};
+	}
+
+	function isParentUI(children, includeSelf) {
+		var self = this;
+		return $(children).find(function(child) {
+			return self.find(function(parent) {
+				var c = child;
+				if (includeSelf && c == parent)
+					return c;
+				while (c = c['parentNode'])
+					if (c == parent)
+						return c;
+			});
+		});
+	}
 
 	NIAGARA.M.prototype.multiAnimUI = multiAnimUI;
-	NIAGARA.M.prototype.onPressUI = onPressUI;
+	NIAGARA.M.prototype.onTouchClickUI = onTouchClickUI;
+	NIAGARA.M.prototype.touchClicker = touchClicker;
+	NIAGARA.M.prototype.isParentUI = isParentUI;
 
 	return {
 		getDataOptions: getDataOptions,
