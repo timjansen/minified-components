@@ -1,0 +1,73 @@
+<html>
+	<head><title>Touch Test</title>
+
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+
+	<style type="text/css">
+		body { font: 20px/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif; }
+		#pageContainer { margin: 0.5em; }
+	</style> 
+
+	<style type="text/css">
+		.tsView { width: 800px; height: 300px; }
+	</style>
+
+	<script type="text/javascript" src="minified-src.js"></script>
+	<script type="text/javascript" src="ui.js"></script>
+  	<script>
+  		var NIA = require('minified'), $ = NIA.$, $$=NIA.$$, EE = NIA.EE, HTML = NIA.HTML;
+  		var _ = NIA._;
+
+  		var imgOrig = true;
+  	
+  		$(function() {
+  			function touchMove(touch) {
+  				this.set('$backgroundColor', '#f88');
+  				var refX = touch.clientX, refY = touch.clientY;
+  				var x = this.get('$left', true), y = this.get('$top', true);
+  				var w = this.get('$width', true), h = this.get('$height', true);
+  				var pw = this.up().get('$width', true), ph = this.up().get('$height', true);
+  				return function(touch, isEnd, isComplete) {
+  					if (isEnd) 
+  						this.set('$backgroundColor', '#f00');
+  					else {
+  						var nx = Math.min(Math.max(touch.clientX - refX + x, 0), pw-w);
+  						var ny = Math.min(Math.max(touch.clientY - refY + y, 0), ph-h);
+  						this.set({$left: nx+'px', $top: ny+'px'});
+  					}
+  				};
+  			}
+
+  			$('#touchTextMovable1').onTouch(touchMove, true);
+   			$('#touchTextMovable2').onTouch(touchMove);
+  		});
+  	</script>
+	</head>
+	<body>
+		<div id="pageContainer">
+			<h2 id="title">OnTouch Test</h2>
+
+			<table>
+			<tr>
+				<td>
+					<div id="touchTestBox1" style="width: 300px; height: 200px; border: 1px solid black; position: relative;">
+						<div id="touchTextMovable1" style="width: 50px; height: 50px; left: 20px; top: 20px; position: absolute; background-color: #f00;">
+							<div style="width: 10px; height: 10px; left: 20px; top: 20px; position: absolute; background-color: #000;"></div>
+						</div>
+					</div>
+					With capture
+				</td><td>
+					<div id="touchTestBox2" style="width: 300px; height: 200px; border: 1px solid black; position: relative;">
+						<div id="touchTextMovable2" style="width: 50px; height: 50px; left: 20px; top: 20px; position: absolute; background-color: #f00;">
+							<div style="width: 10px; height: 10px; left: 20px; top: 20px; position: absolute; background-color: #000;"></div>
+						</div>
+					</div>
+					No capture
+				</td>
+			</tr>
+			</table>
+
+		</div>		
+	</body>
+</html>
+
