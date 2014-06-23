@@ -159,7 +159,7 @@ define('niagara-ui', function(require) {
 	function touchMover(element, options) {
 		var opts = options || {};
 		var velocityEvalTime = getFloat(opts.velocityEvalTime, 250);
-		var velocitySamples = getFloat(opts.velocitySamples, 3);
+		var velocitySamples = getFloat(opts.velocitySamples, 2);
 		var velocityMax = getFloat(opts.velocityMax, 1000);
 		var maxClickDuration = getFloat(opts.maxClickDuration, 750);
 		var maxClickTravel = getFloat(opts.maxClickTravel, 5);
@@ -170,32 +170,16 @@ define('niagara-ui', function(require) {
 		var onFinishED = createEventDispatcher(list);
 		var onClickED = createEventDispatcher(list);
 
-		var stopMove;  // function(e) to stop touch, null if not in touch
-		var touchId;   // the id of the current touch. null for mouse events.
-		
-		function start(ev, index) {
-			if (stopMove)
-				stopMove();
+		function start(touch) {
 			var el = this;
-			var touch = ev.changedTouches ? ev.changedTouches[0] : ev;
 			var x0 = touch.clientX, y0 = touch.clientY; // values at last mouse event
 			var t0 = +new Date();                       // time of the last event
 			var tStart = t0;                            // begin of the touch
 			var lastDx = [], lastDy = [], lastT = [];   // last vx/vy and t, up to velocitySamples
 			var travelDistance = 0;                     // distance travelled during touch (to determine clicks)
 
-			touchId = ev.changedTouches ? ev.changedTouches[0].identifier : null;
-		 
-			function mouseMove(e) {
+			function mouseMove(touch) {
 				var t = +new Date();
-				var touch;
-				if (touchId != null) {
-					touch = findTouch(e, touchId);
-					if (!touch)
-						return;
-				}
-				else
-					touch = e;
 				var nx = touch.clientX, ny = touch.clientY,
 				    dx = nx-x0, dy = ny-y0, dt = Math.max(t - t0, 1);
 				if (dx||dy)
@@ -216,20 +200,8 @@ define('niagara-ui', function(require) {
 				x0 = nx;
 				y0 = ny;
 			}
-			function mouseEnd(e) {
-				if (e) {
-					var relatedTarget = e['relatedTarget'] || e['toElement'];
-					if (e.type == 'mouseout' && 
-						($(relatedTarget).trav('parentNode', list[index]).length || // TODO: use isParentUI!
-						relatedTarget == list[index]))
-						return;
-					mouseMove(e);
-				}
-				$.off(mouseMove);
-				$.off(mouseEnd);
-				stopMove = null;
-				touchId = null;
 
+			function mouseEnd(touch) {
 				var t = +new Date();
 				if (onFinishED.hasHandlers()) {
 					var starT = lastT[0], endT = starT;
@@ -250,20 +222,21 @@ define('niagara-ui', function(require) {
 				if ((t - tStart <= maxClickDuration) && (travelDistance <= maxClickTravel))
 					onClickED();
 			}
-	
-			stopMove = mouseEnd;
-			this.on('mousemove touchmove', mouseMove);
-			this.on('mouseup |mouseout touchend touchcancel touchleave' , mouseEnd);
 
-			onStartED(ev);
+			onStartED(touch);
+			return function(touch, isEnd) {
+				mouseMove(touch);
+				if (isEnd)
+					mouseEnd(touch);
+			};
 		}
 		
 		function off() {
-			$.off(start);
+			$.offTouch(start);
 		}
 
-		list.on('mousedown touchstart', start);
-
+		list.onTouch(start, true);
+	
 		return {onStart: onStartED.on, onMove: onMoveED.on, onFinish: onFinishED.on, onClick: onClickED.on, off: off};
   	}
 
@@ -503,14 +476,15 @@ define('niagara-ui', function(require) {
 		};
 	};
 
-	function onTouchClickUI(subSelector, clickHandler, args) {
+	// TOUCH API
+	function onTouchClick(subSelector, clickHandler, args) {
 		if (_.isFunction(subSelector))
-			this.onTouchClickUI(null, subSelector, clickHandler);
+			this.onTouchClick(null, subSelector, clickHandler);
 		else {
 			var list = subSelector ? this.select(subSelector) : this;
 			var touchClicker = list.touchClicker(true);
 			touchClicker.onClick(function() {
-				clickHandler.apply(this, args || []);
+				clickHandler.apply(this, args || []); // TODO: args can be non-array. Fix for IE using internal call()
 			});
 		}
 		return this;
@@ -523,7 +497,7 @@ define('niagara-ui', function(require) {
 		this.onClick(clickED);
 		if (!disableOver)
 			this.onOver(overED);
-		this.on('touchstart', function(e) {
+		this.onTouch(function(touch) {
 			if (!gotTouchEvents) {
 				$.off(clickED);
 				$.off(overED);
@@ -531,25 +505,22 @@ define('niagara-ui', function(require) {
 			}
 			if (!disableOver)
 				overED.call(this, true);
-			var id = e.changedTouches[0].identifier;
-			this.on('touchmove touchend touchcancel touchleave', function touchHandler(e) {
-				var touch = findTouch(e, id);
-				if (!touch && e.type != 'touchend')
-					return;
 
-				if (e.type == 'touchmove' && this.isParentUI(document.elementFromPoint(touch.pageX, touch.pageY), true))
-					return;
-				$.off(touchHandler);
-				if (!disableOver)
-					overED.call(this, false);
-				if (e.type == 'touchend')
+			var lastOver  = true;
+			return function touchHandler(touch, isEnd, isOk) {
+				if (disableOver && !isOk)
+					return; // nothing to do, exit asap
+				var isOverNow = this.isOver(touch);
+				if (isOverNow != lastOver)
+					overED.call(this, lastOver = isOverNow);
+				if (isOk && isOverNow)
 					clickED.call(this);
-			});
-		});
+			};
+		}, true, 1, true);
 		return {onOver: overED.on, offOver: overED.off, onClick: clickED.on, offClick: clickED.off};
 	}
 
-
+	// TOUCH API
 	// installs an event handler function(touchObj, eventObj, false) that will be called when a list element is touched or mouse-pressed.
 	// The handler may return an new handler function(touchObj, isLast, endsWithUp, eventObj) that will be invoked for every movement
 	// while being pressend and then one last time when the mouse/touch ends. If the handler returns 'false', it will not be invoked anymore
@@ -557,104 +528,108 @@ define('niagara-ui', function(require) {
 	// @param capture optional if true, the touch will continue even when the pointer leaved the element area. Default false.
 	// @param maxTouches optional the maximum number of touches to track for each list element. Default 1.
 	// @param ignoreMouse optional if true, mouse events will be ignored. Allows you to use different handling for mouse events. Default false.
-	function onTouch(handler, capture, maxTouches, ignoreMouse) {
-		maxTouches = maxTouches || 1;
+	function onTouch(subSelector, handler, capture, maxTouches, ignoreMouse) {
+		if (_.isFunction(subSelector))
+			return this.onTouch(null, subSelector, handler, capture, maxTouches);
+		else {
+			maxTouches = maxTouches || 1;
 
-		this.per(function (el) {
-			var moveHandlers = [];   // list of movement handlers
-			var isMouse = null; // true: mouse event in progress; false: touch event in progess; null: nothing
-			
-			function callHandlers(ev, isEnd) {
-				_.each(ev.changedTouches || [ev], function(touch) {
-					_.each(moveHandlers, function(handler) {
-						handler(touch, ev, isEnd);
+			this.per(subSelector, function (el) {
+				var moveHandlers = [];   // list of movement handlers
+				var isMouse = null; // true: mouse event in progress; false: touch event in progess; null: nothing
+				
+				function callHandlers(ev, isEnd) {
+					_.each(ev.changedTouches || [ev], function(touch) {
+						_.each(moveHandlers, function(handler) {
+							handler(touch, ev, isEnd);
+						});
 					});
-				});
-				if (!moveHandlers.length) {
-					$.off(move);
-					$.off(end);
+					if (!moveHandlers.length) {
+						$.off(move);
+						$.off(end);
+					}
 				}
-			}
 
-			function move(ev) {
-				callHandlers(ev, false);
-			}
+				function move(ev) {
+					callHandlers(ev, false);
+				}
 
-			function end(ev) {
-				if (isMouse && ev.type == 'mouseout' && el.isParentUI(ev['relatedTarget'] || ev['toElement'], true)) 
-					return;
-
-				callHandlers(ev, true);
-			}
-
-			function getCoordinates(touch) {
-				return {
-					screenX: touch.screenX,
-					screenY: touch.screenY,
-					clientX: touch.clientX,
-					clientY: touch.clientY,
-					pageX: touch.pageX != null ? touch.pageX : touch.clientX+(document.compatMode=='CSS1Compat' ? document.documentElement.scrollLeft : document.body.scrollLeft),
-					pageY: touch.pageY != null ? touch.pageY : touch.clientY+(document.compatMode=='CSS1Compat' ? document.documentElement.scrollTop  : document.body.scrollTop)
-				};
-			}
-
-			function start(ev) {
-				var startIsMouse = ev.type == 'mousedown';
-				var hasMoveHandlers = !!moveHandlers.length;
-
-				if (isMouse && ev.button) // left button only
-					return;
-
-				if (isMouse != null && startIsMouse != isMouse) // don't mix touch types
-					return;
-				isMouse = startIsMouse;
-
-				_.each(ev.changedTouches || [ev], function(touch) {
-					if (moveHandlers.length >= maxTouches)
+				function end(ev) {
+					if (isMouse && ev.type == 'mouseout' && el.isParent(ev['relatedTarget'] || ev['toElement'], true)) 
 						return;
 
-					var userHandler = handler.call(el, getCoordinates(touch), ev, touch);
-
-					if (_.isFunction(userHandler)) {
-						if (isMouse && capture && el[0].setCapture)
-							el[0].setCapture(true);
-
-						moveHandlers.push(function handler(moveTouch, ev, isEnd) {
-							if (moveTouch.identifier !== touch.identifier)
-								return;
-
-							var ctn = userHandler.call(el, getCoordinates(moveTouch), isEnd, ev.type=='mouseup' || ev.type=='touchend', ev, moveTouch);
-
-							if (isEnd || ctn === false) {
-								if (isMouse && capture && el[0].releaseCapture)
-									el[0].releaseCapture();
-								for (var i = moveHandlers.length-1; i >= 0 ; i--)
-									if (moveHandlers[i] === handler)
-										moveHandlers.splice(i, 1);
-								isMouse = null;
-							} 
-						});
-					}
-					else
-						isMouse = null;
-				});
-				
-				if (!hasMoveHandlers && moveHandlers.length) {
-					if (isMouse) {
-						if (capture) 
-							$(document).on('mousemove>', move).on('mouseup>', end);
-						else 
-							el.on('mousemove', move).on('mouseup |mouseout', end);
-					}
-					else
-						el.on('touchmove', move).on('touchend touchcancel touchleave', end);
+					callHandlers(ev, true);
 				}
-			}
-			 
-			el.on(ignoreMouse ? 'touchstart' : 'mousedown touchstart', start);
-			handler.onTouchH = $([start, handler.onTouchH]);
-		});
-		return this;
+
+				function getCoordinates(touch) {
+					return {
+						screenX: touch.screenX,
+						screenY: touch.screenY,
+						clientX: touch.clientX,
+						clientY: touch.clientY,
+						pageX: touch.pageX != null ? touch.pageX : touch.clientX+(document.compatMode=='CSS1Compat' ? document.documentElement.scrollLeft : document.body.scrollLeft),
+						pageY: touch.pageY != null ? touch.pageY : touch.clientY+(document.compatMode=='CSS1Compat' ? document.documentElement.scrollTop  : document.body.scrollTop)
+					};
+				}
+
+				function start(ev) {
+					var startIsMouse = ev.type == 'mousedown';
+					var hasMoveHandlers = !!moveHandlers.length;
+
+					if (isMouse && ev.button) // left button only
+						return;
+
+					if (isMouse != null && startIsMouse != isMouse) // don't mix touch types
+						return;
+					isMouse = startIsMouse;
+
+					_.each(ev.changedTouches || [ev], function(touch) {
+						if (moveHandlers.length >= maxTouches)
+							return;
+
+						var userHandler = handler.call(el, getCoordinates(touch), ev, touch);
+
+						if (_.isFunction(userHandler)) {
+							if (isMouse && capture && el[0].setCapture)
+								el[0].setCapture(true);
+
+							moveHandlers.push(function handler(moveTouch, ev, isEnd) {
+								if (moveTouch.identifier !== touch.identifier)
+									return;
+
+								var ctn = userHandler.call(el, getCoordinates(moveTouch), isEnd, ev.type=='mouseup' || ev.type=='touchend', ev, moveTouch);
+
+								if (isEnd || ctn === false) {
+									if (isMouse && capture && el[0].releaseCapture)
+										el[0].releaseCapture();
+									for (var i = moveHandlers.length-1; i >= 0 ; i--)
+										if (moveHandlers[i] === handler)
+											moveHandlers.splice(i, 1);
+									isMouse = null;
+								} 
+							});
+						}
+						else
+							isMouse = null;
+					});
+					
+					if (!hasMoveHandlers && moveHandlers.length) {
+						if (isMouse) {
+							if (capture) 
+								$(document).on('mousemove>', move).on('mouseup>', end);
+							else 
+								el.on('mousemove', move).on('mouseup |mouseout', end);
+						}
+						else
+							el.on('touchmove', move).on('touchend touchcancel touchleave', end);
+					}
+				}
+				 
+				el.on(ignoreMouse ? 'touchstart' : 'mousedown touchstart', start);
+				handler.onTouchH = $([start, handler.onTouchH]);
+			});
+			return this;
+		}
   	}
 
   	function offTouch(handler) {
@@ -664,8 +639,8 @@ define('niagara-ui', function(require) {
   		}
   	}
 
-
-	function isParentUI(children, includeSelf) {
+	// TOUCH API
+	function isParent(children, includeSelf) {
 		var self = this;
 		return $(children).find(function(child) {
 			return self.find(function(parent) {
@@ -679,11 +654,75 @@ define('niagara-ui', function(require) {
 		});
 	}
 
+	// TOUCH API
+	// returns first element from list that is available on those page coordinates. Otherwise null.
+	function isOver(pageX, pageY) {
+		if (pageX.pageX != null)
+			return this.isOver(pageX.pageX, pageX.pageY);
+		else
+			return this.isParent(document.elementFromPoint(pageX, pageY), true);
+	}
+
+	// TOUCH API
+	function fromPoint(pageX, pageY, selector) {
+		if (pageX.pageX != null)
+			return this.isOver(pageX.pageX, pageX.pageY, pageY);
+		else {
+			var p = $(document.elementFromPoint(pageX, pageY));
+			if (p.is(selector))
+				return p;
+			else
+				return p.up(selector);
+		}
+	}
+
+	// CORE or ANIMATION?
+	function animationController(startAnimation, restartableOrResetFunc) {
+		var state = 0; // 0=paused, 1=anim, 2=resetting
+		var prom;
+		return function ctrler() {
+			if (state == 1 && restartableOrResetFunc) {
+				function restart() {
+					state = 0;
+					ctrler();
+				}
+				if (prom)
+					prom.stop();
+				prom = null;
+				if (_.isFunction(restartableOrResetFunc)) {
+					state = 2;
+					restartableOrResetFunc().then(restart);
+				}
+				else 
+					restart();
+			}
+			else if (!state) {
+				state = 1;
+				prom = startAnimation().then(function() {
+					state = 0;
+				});
+			}
+		};
+	}
+
+	// CORE or ANIMATION?
+	function animator(state1, state2, durationMs, resettableInMs, interpolator, resetInterpolator) {
+		var self = this;
+		return animationController(function() {
+			return self.set(state1).animate(state2, durationMs, interpolator);
+		}, resettableInMs && ((resettableInMs == 0) || function() {
+			self.animate(state1, resettableInMs, resetInterpolator || interpolato);
+		}));
+	}
+
+
 	NIAGARA.M.prototype.multiAnimUI = multiAnimUI;
-	NIAGARA.M.prototype.onTouchClickUI = onTouchClickUI;
+	NIAGARA.M.prototype.onTouchClick = onTouchClick;
 	NIAGARA.M.prototype.onTouch = onTouch;
 	NIAGARA.M.prototype.touchClicker = touchClicker;
-	NIAGARA.M.prototype.isParentUI = isParentUI;
+	NIAGARA.M.prototype.isParent = isParent;
+	NIAGARA.M.prototype.isOver = isOver;
+	NIAGARA.M.prototype.animator = animator;
 
 	return {
 		getDataOptions: getDataOptions,
@@ -703,6 +742,8 @@ define('niagara-ui', function(require) {
 		exitFullscreen: exitFullscreen,
 		maximize: maximize, 
 		isMaximizePossible: isMaximizePossible,
-		offTouch: offTouch
+		offTouch: offTouch,
+		fromPoint: fromPoint,
+		animationController: animationController
 	};
 });

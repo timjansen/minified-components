@@ -8,16 +8,12 @@
 		#pageContainer { margin: 0.5em; }
 	</style> 
 
-	<style type="text/css">
-		.tsView { width: 800px; height: 300px; }
-	</style>
-
 	<script type="text/javascript" src="minified-src.js"></script>
 	<script type="text/javascript" src="ui.js"></script>
   	<script>
   		var NIA = require('minified'), $ = NIA.$, $$=NIA.$$, EE = NIA.EE, HTML = NIA.HTML;
   		var _ = NIA._;
-
+  		var niaUi = require('niagara-ui');
   		var imgOrig = true;
   	
   		$(function() {
@@ -38,8 +34,34 @@
   				};
   			}
 
-  			$('#touchTextMovable1').onTouch(touchMove, true);
-   			$('#touchTextMovable2').onTouch(touchMove);
+  			$('#touchTestMovable1').onTouch(touchMove, true);
+   			$('#touchTestMovable2').onTouch(touchMove);
+
+   			$('#touchTestBox3').onTouch(function(touch) {
+   				var self = this;
+   				var size = 25;
+   				var pw = self.get('$width', true), ph = self.get('$height', true);
+   				var box = EE('div', {$position: 'absolute', $width: size+'px', $height: size+'px', $backgroundColor: '#0f0'});
+   				self.add(box);
+
+   				function posBox(touch) {
+   					var offset = self.offset();
+   					var nx = Math.min(Math.max(touch.clientX - offset.x - size/2, 0), pw-size);
+  					var ny = Math.min(Math.max(touch.clientY - offset.y - size/2, 0), ph-size);
+  					box.set({$left: nx+'px', $top: ny+'px'});
+   				}
+   				posBox(touch);
+
+   				return function(touch, end) {
+   					posBox(touch);
+   					if (end)
+	   					box.animate({$$fade: 0}, 300).then(function(list) {
+	   						list.remove();
+	   					});
+   				};
+   			}, false, 10);
+
+   			$('#touchTestBox4 button').onTouchClick($('#touchTestBox4').animator({$backgroundColor: '#000'}, {$backgroundColor: '#fff'}, 500, 0));
   		});
   	</script>
 	</head>
@@ -50,19 +72,35 @@
 			<table>
 			<tr>
 				<td>
+					onTouch() event handler - with capture
 					<div id="touchTestBox1" style="width: 300px; height: 200px; border: 1px solid black; position: relative;">
-						<div id="touchTextMovable1" style="width: 50px; height: 50px; left: 20px; top: 20px; position: absolute; background-color: #f00;">
+						<div id="touchTestMovable1" style="width: 50px; height: 50px; left: 20px; top: 20px; position: absolute; background-color: #f00;">
 							<div style="width: 10px; height: 10px; left: 20px; top: 20px; position: absolute; background-color: #000;"></div>
 						</div>
 					</div>
-					With capture
+					Move the box
 				</td><td>
+					onTouch() event handler - no capture
 					<div id="touchTestBox2" style="width: 300px; height: 200px; border: 1px solid black; position: relative;">
-						<div id="touchTextMovable2" style="width: 50px; height: 50px; left: 20px; top: 20px; position: absolute; background-color: #f00;">
+						<div id="touchTestMovable2" style="width: 50px; height: 50px; left: 20px; top: 20px; position: absolute; background-color: #f00;">
 							<div style="width: 10px; height: 10px; left: 20px; top: 20px; position: absolute; background-color: #000;"></div>
 						</div>
 					</div>
-					No capture
+					Move the box
+				</td>
+			</tr>
+			<tr>
+				<td>
+					onTouch() event handler
+					<div id="touchTestBox3" style="width: 300px; height: 200px; border: 1px solid black; position: relative;">
+					</div>
+					Multi-touch in the box
+				</td><td>
+					onTouchClick() event handler
+					<div id="touchTestBox4" style="width: 300px; height: 200px; border: 1px solid black; position: relative;">
+						<button style="text-align: center; margin: 80px; width: 140px; height: 40px;">Click me</button>
+					</div>
+					click the button
 				</td>
 			</tr>
 			</table>
